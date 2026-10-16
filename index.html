@@ -1,0 +1,1381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AR Outlook — RCM Demo</title>
+<style>
+
+    :root {
+      --color-bg: #f7f6f2;
+      --color-panel: #ffffff;
+      --color-fg: #1a1a18;
+      --color-fg-muted: #6b6a64;
+      --color-border-line: #e3e1d8;
+      --color-ok: #0ca30c;
+      --color-bad: #d03b3b;
+      --font-anthropic-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-anthropic-serif: Georgia, "Times New Roman", serif;
+      --cds-font-size-title: 22px;
+      --cds-font-size-heading: 16px;
+      --cds-font-size-body: 14px;
+      --cds-font-size-caption: 12px;
+      --cds-font-weight-medium: 600;
+      --cds-gap-lg: 24px;
+      --cds-gap-md: 16px;
+      --cds-gap-sm: 10px;
+      --cds-gap-xs: 6px;
+      --cds-pad-lg: 20px;
+      --cds-pad-md: 14px;
+      --cds-pad-sm: 10px;
+      --cds-pad-xs: 6px;
+      --cds-radius: 10px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-bg: #15140f;
+        --color-panel: #201f1a;
+        --color-fg: #f0efe9;
+        --color-fg-muted: #a6a49a;
+        --color-border-line: #38362c;
+      }
+    }
+    :root[data-theme="dark"] {
+      --color-bg: #15140f;
+      --color-panel: #201f1a;
+      --color-fg: #f0efe9;
+      --color-fg-muted: #a6a49a;
+      --color-border-line: #38362c;
+    }
+    html, body { margin: 0; padding: 0; background: var(--color-bg); }
+    body { padding: clamp(16px, 4vw, 40px); font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+    #dash-root { max-width: 1280px; margin: 0 auto; }
+
+</style>
+<style>
+  /* One restrained palette: a single structural accent (blue) plus status colors
+     reserved strictly for good/bad/warning signal — never used as decorative per-section identity. */
+  #dash-root {
+    --dash-gutter: clamp(16px, 4vw, 40px); font-family: var(--font-anthropic-sans);
+    --arx-accent: #2a78d6; --arx-accent-soft: #eef4fc;
+    --arx-good: #0ca30c; --arx-good-soft: #eaf7ea;
+    --arx-bad: #d03b3b; --arx-bad-soft: #fbeaea;
+    --arx-warn: #b9790a; --arx-warn-soft: #fdf2df;
+    --arx-ink: var(--color-fg); --arx-ink-muted: var(--color-fg-muted);
+    --arx-line: var(--color-border-line);
+    --arx-shadow: 0 1px 2px rgba(11,11,11,0.05), 0 1px 1px rgba(11,11,11,0.03);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) #dash-root { --arx-accent-soft: #15233a; --arx-good-soft: #112a12; --arx-bad-soft: #341616; --arx-warn-soft: #332508; }
+  }
+  :root[data-theme="dark"] #dash-root { --arx-accent-soft: #15233a; --arx-good-soft: #112a12; --arx-bad-soft: #341616; --arx-warn-soft: #332508; }
+
+  .arx-wrap { display: flex; flex-direction: column; gap: 22px; }
+
+  .arx-header { display: flex; flex-direction: column; gap: 4px; }
+  .arx-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--arx-accent); margin: 0; }
+  .arx-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); color: var(--arx-ink); margin: 0; }
+  .arx-take { font-size: var(--cds-font-size-body); color: var(--arx-ink-muted); margin: 0; min-height: 1.3em; }
+
+  .arx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); background: var(--color-panel); border: 1px solid var(--arx-line); border-radius: 10px; padding: 12px 16px; box-shadow: var(--arx-shadow); }
+  .arx-filter-label { font-size: 11px; color: var(--arx-ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; font-weight: 600; }
+  .arx-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .arx-chip { border: 1px solid var(--arx-line); background: var(--color-bg); color: var(--arx-ink); border-radius: 7px; padding: 6px 12px; font-size: 12.5px; font-family: var(--font-anthropic-sans); font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 120ms ease; }
+  .arx-chip:hover { border-color: var(--arx-accent); color: var(--arx-accent); }
+  .arx-chip[aria-pressed="true"] { background: var(--arx-accent); color: #fff; border-color: var(--arx-accent); box-shadow: 0 1px 3px rgba(42,120,214,0.35); }
+  .arx-select { border: 1px solid var(--arx-line); background: var(--color-bg); color: var(--arx-ink); border-radius: 7px; padding: 6px 10px; font-size: 12.5px; font-family: var(--font-anthropic-sans); }
+  .arx-divider { width: 1px; align-self: stretch; background: var(--arx-line); margin: 0 4px; }
+  .arx-bucket-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .arx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 14px; }
+  .arx-kpi { background: var(--color-panel); border: 1px solid var(--arx-line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--arx-shadow); }
+  .arx-kpi-label { font-size: 11px; color: var(--arx-ink-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .arx-kpi-value { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 28px; line-height: 1.1; color: var(--arx-ink); font-variant-numeric: tabular-nums; }
+  .arx-kpi-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .arx-kpi-delta { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-variant-numeric: tabular-nums; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+  .arx-kpi-delta.is-good { color: var(--arx-good); background: var(--arx-good-soft); }
+  .arx-kpi-delta.is-bad { color: var(--arx-bad); background: var(--arx-bad-soft); }
+  .arx-kpi-delta.is-flat { color: var(--arx-ink-muted); background: var(--color-bg); }
+  .arx-kpi-sub { font-size: 11px; color: var(--arx-ink-muted); }
+  .arx-spark { display: block; width: 100%; height: 26px; margin-top: 2px; }
+
+  .arx-card { background: var(--color-panel); border: 1px solid var(--arx-line); border-radius: 10px; padding: 18px 20px; position: relative; min-width: 0; box-shadow: var(--arx-shadow); }
+  .arx-card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--cds-gap-sm); margin-bottom: 12px; }
+  .arx-card-head-text { display: flex; flex-direction: column; gap: 3px; }
+  .arx-card-title { font-size: 15px; font-weight: 600; color: var(--arx-ink); letter-spacing: -0.01em; }
+  .arx-card-note { font-size: 12px; color: var(--arx-ink-muted); max-width: 62ch; line-height: 1.5; }
+  .arx-chart-box { position: relative; min-height: 220px; }
+  .arx-chart-box svg { width: 100%; display: block; overflow: visible; }
+  .arx-attr-head { font-size: var(--cds-font-size-body); font-weight: 600; color: var(--arx-ink); margin: var(--cds-gap-lg) 0 2px; border-top: 1px solid var(--arx-line); padding-top: var(--cds-gap-md); }
+  .arx-attr-explain { font-size: 12px; color: var(--arx-ink-muted); margin: 0 0 12px; max-width: 68ch; line-height: 1.5; }
+
+  .arx-sub-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .arx-table-wrap { overflow-x: auto; border: 1px solid var(--arx-line); border-radius: 8px; }
+  table.arx-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.arx-table th, table.arx-table td { text-align: right; padding: 9px 11px; border-bottom: 1px solid var(--arx-line); white-space: nowrap; }
+  table.arx-table th:first-child, table.arx-table td:first-child { text-align: left; font-weight: 500; }
+  table.arx-table th { color: var(--arx-ink-muted); font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; background: var(--color-bg); border-bottom: 1px solid var(--arx-line); }
+  table.arx-table tbody tr:nth-child(even):not(.is-total) td { background: color-mix(in srgb, var(--color-bg) 55%, transparent); }
+  table.arx-table tbody tr.is-total td { font-weight: 600; border-top: 1.5px solid var(--arx-ink); background: var(--color-bg); }
+  table.arx-table tbody tr.is-clickable { cursor: pointer; }
+  table.arx-table tbody tr.is-clickable:hover td { background: var(--arx-accent-soft); }
+  table.arx-table tbody tr[aria-current="true"] td { background: var(--arx-accent-soft); font-weight: 600; box-shadow: inset 2px 0 0 var(--arx-accent); }
+  table.arx-table thead tr.arx-group-row th { border-bottom: none; text-align: center; }
+  table.arx-table-stacked td { white-space: normal; vertical-align: top; }
+  .arx-cell-main { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .arx-cell-pct { font-size: 11px; font-weight: 500; color: var(--arx-ink-muted); font-variant-numeric: tabular-nums; }
+  .arx-cell-pct.is-skew { color: var(--arx-warn); font-weight: 600; }
+  .arx-cell-sub { font-size: 11px; color: var(--arx-ink-muted); font-variant-numeric: tabular-nums; }
+
+  table.arx-table-dense th, table.arx-table-dense td { padding: 7px 8px; font-size: 12px; }
+  table.arx-table-dense th:first-child, table.arx-table-dense td:first-child { white-space: nowrap; }
+
+  [data-dash-source-state="error"] .arx-chart-box { display: flex; align-items: center; justify-content: center; }
+  .arx-error { display: flex; align-items: center; gap: 8px; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .arx-error-dot { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--color-bad); flex: none; }
+
+  /* ---- tab navigation across the three dashboard pages ---- */
+  .arx-shell { display: flex; flex-direction: column; gap: 18px; }
+  .arx-tabbar { display: flex; gap: 22px; border-bottom: 1px solid var(--arx-line); }
+  .arx-tab { border: none; background: none; padding: 9px 2px 10px; font-size: 13.5px; font-weight: 600; font-family: var(--font-anthropic-sans); color: var(--arx-ink-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 120ms ease, border-color 120ms ease; }
+  .arx-tab:hover { color: var(--arx-ink); }
+  .arx-tab[aria-pressed="true"] { color: var(--arx-accent); border-bottom-color: var(--arx-accent); }
+  .arx-page[hidden] { display: none; }
+
+  /* ---- inline magnitude bar (used for success-rate / achieved-rate cells) ---- */
+  .arx-bar-wrap { position: relative; width: 56px; height: 6px; background: var(--color-bg); border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 7px; overflow: hidden; }
+  .arx-bar-fill { position: absolute; top: 0; left: 0; bottom: 0; background: var(--arx-accent); border-radius: 3px; }
+  .arx-bar-fill.is-good { background: var(--arx-good); }
+  .arx-bar-fill.is-bad { background: var(--arx-bad); }
+  .arx-rate-text { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .arx-empty-note { font-size: 12.5px; color: var(--arx-ink-muted); padding: 10px 2px; }
+  .arx-leader-name { font-weight: 600; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+
+<script>
+(function () {
+  var DATASETS = ["ar_totals","ar_trend","ar_weekly","bucket_driver_impact","followup_backlog",
+    "denial_collectibility","rep_productivity_monthly","rep_productivity_daily","rep_denial_breakdown"];
+  var store = {};
+  var allLoaded = false;
+  var onDataCb = null;
+  var currentParams = {};
+
+  window.dash = {
+    data: function (id) {
+      if (store[id] === undefined) return { status: 'loading', data: [] };
+      return { status: 'ok', data: store[id] };
+    },
+    onData: function (cb) { onDataCb = cb; if (allLoaded) cb(); },
+    params: function () { return Object.assign({}, currentParams); },
+    setParams: function (p) { currentParams = Object.assign({}, currentParams, p); if (onDataCb) onDataCb(); },
+  };
+
+  Promise.all(DATASETS.map(function (id) {
+    return fetch('data/' + id + '.json').then(function (r) { return r.json(); }).then(function (json) { store[id] = json; });
+  })).then(function () {
+    allLoaded = true;
+    if (onDataCb) onDataCb();
+  }).catch(function (err) {
+    console.error('Failed to load one or more datasets', err);
+    allLoaded = true;
+    if (onDataCb) onDataCb();
+  });
+})();
+</script>
+
+</head>
+<body>
+<div id="dash-root">
+
+
+<div class="arx-shell">
+
+<div class="arx-tabbar" id="arx-tabbar">
+  <button class="arx-tab" type="button" data-tab="ar" aria-pressed="true">AR Outlook</button>
+  <button class="arx-tab" type="button" data-tab="denial" aria-pressed="false">Denial Collectibility</button>
+  <button class="arx-tab" type="button" data-tab="rep" aria-pressed="false">A/R Rep Productivity</button>
+</div>
+
+<div class="arx-wrap arx-page" id="arx-page-ar">
+
+  <div class="arx-header">
+    <p class="arx-eyebrow">Revenue Cycle · Accounts Receivable</p>
+    <h1 class="arx-title">AR Outlook</h1>
+    <p class="arx-take" id="arx-takeaway">—</p>
+  </div>
+
+  <div class="arx-filters">
+    <span class="arx-filter-label">View</span>
+    <div class="arx-filter-group">
+      <button class="arx-chip" id="arx-practice-chip" type="button" aria-pressed="true">All providers / all payers</button>
+      <select class="arx-select" id="arx-provider-select" aria-label="Filter by provider">
+        <option value="">Provider…</option>
+      </select>
+      <select class="arx-select" id="arx-payer-select" aria-label="Filter by payer">
+        <option value="">Payer…</option>
+      </select>
+      <select class="arx-select" id="arx-month-select" aria-label="Filter by month"></select>
+    </div>
+    <div class="arx-divider"></div>
+    <span class="arx-filter-label">Bucket</span>
+    <div class="arx-bucket-row" id="arx-bucket-row"></div>
+  </div>
+
+  <div class="arx-kpis" id="arx-kpis">
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">Total AR</div>
+      <div class="arx-kpi-value" id="arx-kpi-total-ar">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-kpi-total-ar-delta">—</span><span class="arx-kpi-sub">vs. last week</span></div>
+      <svg class="arx-spark" id="arx-spark-total-ar"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">91–365 Day AR</div>
+      <div class="arx-kpi-value" id="arx-kpi-91-365">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-kpi-91-365-delta">—</span><span class="arx-kpi-sub">vs. last week</span></div>
+      <svg class="arx-spark" id="arx-spark-91-365"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">365+ Day AR</div>
+      <div class="arx-kpi-value" id="arx-kpi-365plus">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-kpi-365plus-delta">—</span><span class="arx-kpi-sub">vs. last week</span></div>
+      <svg class="arx-spark" id="arx-spark-365plus"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">Days in AR (DAR)</div>
+      <div class="arx-kpi-value" id="arx-kpi-dar">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-kpi-dar-delta">—</span><span class="arx-kpi-sub">target: ~26 days</span></div>
+      <svg class="arx-spark" id="arx-spark-dar"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">Day 45 Liquidation Rate</div>
+      <div class="arx-kpi-value" id="arx-kpi-liq">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-kpi-liq-delta">—</span><span class="arx-kpi-sub">target: 91%</span></div>
+      <svg class="arx-spark" id="arx-spark-liq"></svg>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="ar_trend">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title">AR Aging by Bucket (DOS Age)</div>
+        <div class="arx-card-note">Insurance vs. patient responsibility is modeled to shift toward patient-owed as a claim ages (90% insurance at 0-30 days, down to 55% at 365+). Selected month, current view.</div>
+      </div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table" id="arx-dos-table">
+        <thead>
+          <tr><th>DOS Age</th><th>Insurance Balance ($)</th><th>% Ins.</th><th>Patient Balance ($)</th><th>% Pt.</th><th>Total ($)</th><th>% of Total AR</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="followup_backlog">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title">Follow-up Backlog by Balance Size</div>
+        <div class="arx-card-note">How long it's been since a claim was last worked (follow-up lag) — a different clock from AR aging above. Each cell shows its share of that column's claim count and its share of that column's dollars side by side; amber flags where the dollar share notably outpaces the claim share — fewer claims, but a disproportionate amount of A/R.</div>
+      </div>
+      <div class="arx-sub-chip-row" id="arx-balance-row"></div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table arx-table-stacked" id="arx-followup-table">
+        <thead>
+          <tr>
+            <th>Balance Bucket</th>
+            <th>31–45 days lag</th>
+            <th>46–90 days lag</th>
+            <th>&gt;90 days lag</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="ar_totals">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title">Day 45 Liquidation Trend</div>
+        <div class="arx-card-note">Share of charges collected within 45 days of date of service. Dashed line is the 91% target. Values are labeled directly — nothing to hover for.</div>
+      </div>
+      <select class="arx-select" id="arx-liq-range-select" aria-label="Date range">
+        <option value="12">Last 12 months</option>
+        <option value="6">Last 6 months</option>
+        <option value="3">Last 3 months</option>
+      </select>
+    </div>
+    <div class="arx-chart-box" id="arx-liq-box"><svg id="arx-liq-svg"></svg></div>
+  </div>
+
+  <div class="arx-card" data-source="ar_trend">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title" id="arx-payer-title">Responsible Payer Name</div>
+        <div class="arx-card-note">AR by aging bucket, for the selected month, by payer. Click a payer row to filter the whole page to that payer.</div>
+      </div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table" id="arx-payer-table">
+        <thead>
+          <tr><th>Responsible Payer Name</th><th>0–30</th><th>31–60</th><th>61–90</th><th>91–365</th><th>365+</th><th>Total</th><th>% of Total AR</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="ar_totals ar_trend bucket_driver_impact followup_backlog">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title" id="arx-main-title">Monthly AR &amp; Driver Trend</div>
+        <div class="arx-card-note" id="arx-main-note">All figures are real operational dollars (or % of AR), not deltas.</div>
+      </div>
+    </div>
+    <p class="arx-attr-explain" id="arx-attr-explain">Denied: gross dollar value of claims denied. Backlog: dollars sitting unworked (all lag buckets combined). Resolution %: of the dollars that actually got followed up on, what share was resolved — all scoped to the current filter and bucket.</p>
+    <div class="arx-table-wrap">
+      <table class="arx-table arx-table-dense" id="arx-attr-table">
+        <thead>
+          <tr>
+            <th>Month</th><th>Total AR</th><th>0–30</th><th>31–60</th><th>61–90</th><th>91–365</th><th>365+</th>
+            <th>Denied</th><th>Backlog</th>
+            <th id="arx-attr-col-res">Resolution %</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /arx-page-ar -->
+
+<div class="arx-wrap arx-page" id="arx-page-denial" hidden>
+
+  <div class="arx-header">
+    <p class="arx-eyebrow">Revenue Cycle · Denials</p>
+    <h1 class="arx-title">Denial Collectibility</h1>
+    <p class="arx-take" id="arx-denial-takeaway">—</p>
+  </div>
+
+  <div class="arx-filters">
+    <span class="arx-filter-label">Month</span>
+    <select class="arx-select" id="arx-denial-month-select"></select>
+    <div class="arx-divider"></div>
+    <span class="arx-filter-label">Payer</span>
+    <select class="arx-select" id="arx-denial-payer-select">
+      <option value="all">All payers</option>
+    </select>
+    <span class="arx-filter-label">CPT group</span>
+    <select class="arx-select" id="arx-denial-cpt-select">
+      <option value="all">All CPT groups</option>
+    </select>
+    <div class="arx-divider"></div>
+    <span class="arx-filter-label">View by</span>
+    <div class="arx-filter-group" id="arx-denial-axis-row"></div>
+  </div>
+
+  <div class="arx-kpis" id="arx-denial-kpis">
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">Total Denied</div>
+      <div class="arx-kpi-value" id="arx-dkpi-denied">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-dkpi-denied-delta">—</span><span class="arx-kpi-sub">vs. last month</span></div>
+      <svg class="arx-spark" id="arx-dspark-denied"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">Total Resolved</div>
+      <div class="arx-kpi-value" id="arx-dkpi-resolved">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-dkpi-resolved-delta">—</span><span class="arx-kpi-sub">vs. last month</span></div>
+      <svg class="arx-spark" id="arx-dspark-resolved"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label">Blended Success Rate</div>
+      <div class="arx-kpi-value" id="arx-dkpi-rate">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-dkpi-rate-delta">—</span><span class="arx-kpi-sub">vs. last month</span></div>
+      <svg class="arx-spark" id="arx-dspark-rate"></svg>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="denial_collectibility">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title" id="arx-denial-table-title">Collectibility by Denial Category</div>
+        <div class="arx-card-note">Success = resolved-and-paid dollars (full or partial) over denied dollars, for the selected month and filters. Ranked most-collectible first.</div>
+      </div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table" id="arx-denial-table">
+        <thead>
+          <tr><th id="arx-denial-col1">Denial Category</th><th>Denied ($)</th><th>Resolved ($)</th><th>Success Rate</th><th>Claims Denied</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="denial_collectibility">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title" id="arx-denial-drill-title">Payer × CPT breakdown</div>
+        <div class="arx-card-note" id="arx-denial-drill-note">Switch "View by" to Category, then click a row above to see that category's success rate across every payer × CPT combination in one view.</div>
+      </div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table" id="arx-denial-drill-table">
+        <thead><tr id="arx-denial-drill-head"></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /arx-page-denial -->
+
+<div class="arx-wrap arx-page" id="arx-page-rep" hidden>
+
+  <div class="arx-header">
+    <p class="arx-eyebrow">Revenue Cycle · A/R Team</p>
+    <h1 class="arx-title">A/R Rep Productivity</h1>
+    <p class="arx-take" id="arx-rep-takeaway">—</p>
+  </div>
+
+  <div class="arx-filters">
+    <span class="arx-filter-label">Month</span>
+    <select class="arx-select" id="arx-rep-month-select"></select>
+    <div class="arx-divider"></div>
+    <span class="arx-filter-label">Rep</span>
+    <select class="arx-select" id="arx-rep-select">
+      <option value="all">All reps (team view)</option>
+    </select>
+  </div>
+
+  <div class="arx-kpis" id="arx-rep-kpis">
+    <div class="arx-kpi">
+      <div class="arx-kpi-label" id="arx-rkpi-claims-label">Team Avg Claims / Day</div>
+      <div class="arx-kpi-value" id="arx-rkpi-claims">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-rkpi-claims-delta">—</span><span class="arx-kpi-sub">vs. last month</span></div>
+      <svg class="arx-spark" id="arx-rspark-claims"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label" id="arx-rkpi-achieved-label">Achieved vs. Target</div>
+      <div class="arx-kpi-value" id="arx-rkpi-achieved">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-rkpi-achieved-delta">—</span><span class="arx-kpi-sub">target: 45/day</span></div>
+      <svg class="arx-spark" id="arx-rspark-achieved"></svg>
+    </div>
+    <div class="arx-kpi">
+      <div class="arx-kpi-label" id="arx-rkpi-success-label">Denial Resolution Success</div>
+      <div class="arx-kpi-value" id="arx-rkpi-success">—</div>
+      <div class="arx-kpi-row"><span class="arx-kpi-delta" id="arx-rkpi-success-delta">—</span><span class="arx-kpi-sub">vs. last month</span></div>
+      <svg class="arx-spark" id="arx-rspark-success"></svg>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="rep_productivity_daily">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title" id="arx-rep-chart-title">Daily Productivity vs. Target</div>
+        <div class="arx-card-note">Sampled workdays within the selected month. Switch to a single rep above to see their own pace against the flat 45/day target.</div>
+      </div>
+    </div>
+    <div class="arx-chart-box" id="arx-rep-chart-box"><svg id="arx-rep-chart-svg"></svg></div>
+  </div>
+
+  <div class="arx-card" data-source="rep_productivity_monthly rep_denial_breakdown">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title">Rep Leaderboard</div>
+        <div class="arx-card-note">Ranked by denial resolution success rate for the selected month. Click a row to drill into that rep's category × payer breakdown below.</div>
+      </div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table" id="arx-rep-leader-table">
+        <thead>
+          <tr><th>Rep</th><th>Claims/Day</th><th>Achieved %</th><th>Denied ($)</th><th>Resolved ($)</th><th>Success Rate</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="arx-card" data-source="rep_denial_breakdown">
+    <div class="arx-card-head">
+      <div class="arx-card-head-text">
+        <div class="arx-card-title" id="arx-rep-drill-title">Where a rep is more successful</div>
+        <div class="arx-card-note" id="arx-rep-drill-note">Select a rep from the leaderboard above, or the dropdown, to see their success rate by denial category × payer.</div>
+      </div>
+    </div>
+    <div class="arx-table-wrap">
+      <table class="arx-table" id="arx-rep-drill-table">
+        <thead><tr id="arx-rep-drill-head"></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /arx-page-rep -->
+
+</div><!-- /arx-shell -->
+
+
+</div>
+<script>
+
+(function () {
+  const fmtUSDcompact = (v) => '$' + new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 }).format(v);
+  const fmtSignedUSDcompact = (v) => (v >= 0 ? '+' : '-') + '$' + new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 }).format(Math.abs(v));
+  const fmtUSD0 = (v) => '$' + Math.round(v).toLocaleString('en-US');
+  const fmtDays1 = (v) => v.toFixed(1);
+  const fmtPct1 = (v) => v.toFixed(1) + '%';
+  const fmtInt = (v) => Math.round(v).toLocaleString('en-US');
+
+  const MONTHS = ["Oct-25","Nov-25","Dec-25","Jan-26","Feb-26","Mar-26","Apr-26","May-26","Jun-26","Jul-26","Aug-26","Sep-26"];
+
+  const BUCKETS = [
+    { id: 'all', label: 'All 31+ buckets' },
+    { id: 'b31_60', label: '31–60 days' },
+    { id: 'b61_90', label: '61–90 days' },
+    { id: 'b91_365', label: '91–365 days' },
+    { id: 'b365plus', label: '365+ days' },
+  ];
+  const AGED_BUCKET_IDS = ['b31_60','b61_90','b91_365','b365plus'];
+  const ALL5_BUCKET_IDS = ['b0_30','b31_60','b61_90','b91_365','b365plus'];
+  const bucketLabel = (id) => (BUCKETS.find(b => b.id === id) || {}).label || id;
+  const ALL5_LABELS = { b0_30: '0-30 days', b31_60: '31-60 days', b61_90: '61-90 days', b91_365: '91-365 days', b365plus: '365+ days' };
+
+  const BALANCE_BUCKETS = [
+    { id: 'all', label: 'All sizes' },
+    { id: 'gt5000', label: '>$5000' },
+    { id: 'b1000_5000', label: '$1000–$5000' },
+    { id: 'lt1000', label: '<$1000' },
+  ];
+  const LAG_BUCKETS = ['lag31_45','lag46_90','lag90plus'];
+
+  // Insurance vs. patient split, modeled to shift toward patient responsibility as a claim ages
+  // (insurance typically adjudicates within the first 30-60 days; what's left aging past that is increasingly patient-owed).
+  const INS_SHARE_BY_BUCKET = { b0_30: 0.90, b31_60: 0.84, b61_90: 0.76, b91_365: 0.66, b365plus: 0.55 };
+
+  // ---- Denial Collectibility / Rep Productivity reference data (mirrors gen.py) ----
+  const DENIAL_CATEGORIES = [
+    { id: 'auth', label: 'Authorization / Pre-cert' },
+    { id: 'timely', label: 'Timely Filing' },
+    { id: 'med_necessity', label: 'Medical Necessity' },
+    { id: 'eligibility', label: 'Eligibility / Coverage' },
+    { id: 'documentation', label: 'Documentation / Medical Records' },
+    { id: 'coding', label: 'Coding / Bundling' },
+    { id: 'duplicate', label: 'Duplicate Claim' },
+    { id: 'cob', label: 'Coordination of Benefits' },
+    { id: 'noncovered', label: 'Non-Covered Service' },
+  ];
+  const CPT_GROUPS = [
+    { id: 'em', label: 'E/M – Office Visits' },
+    { id: 'imaging', label: 'Imaging / Radiology' },
+    { id: 'therapy', label: 'Therapy (PT/OT)' },
+    { id: 'injections', label: 'Injections & Infusions' },
+    { id: 'procedures', label: 'Minor Procedures' },
+  ];
+  const REPS = [
+    { id: 'rep01', label: 'A. Sharma' }, { id: 'rep02', label: 'B. Iyer' }, { id: 'rep03', label: 'C. Reddy' },
+    { id: 'rep04', label: 'D. Fernandes' }, { id: 'rep05', label: 'E. Nair' }, { id: 'rep06', label: 'F. Joseph' },
+    { id: 'rep07', label: 'G. Menon' }, { id: 'rep08', label: 'H. Varma' }, { id: 'rep09', label: 'I. Pillai' },
+    { id: 'rep10', label: 'J. Kurian' },
+  ];
+  const catLabel = (id) => (DENIAL_CATEGORIES.find(c => c.id === id) || {}).label || id;
+  const cptLabel = (id) => (CPT_GROUPS.find(c => c.id === id) || {}).label || id;
+  const repLabel = (id) => (REPS.find(r => r.id === id) || {}).label || id;
+  let PAYER_LABELS = {}; // populated from ar_totals slice rows in buildFilterOptions
+
+  const DEFAULT_PARAMS = {
+    tab: 'ar',
+    sliceType: 'practice', sliceId: 'all', bucket: 'all', month: MONTHS[MONTHS.length-1], balanceBucket: 'all', liqRange: '12',
+    denialPayer: 'all', denialCpt: 'all', denialAxis: 'category', denialDrillCat: 'none',
+    repId: 'all',
+  };
+  function params() { const p = dash.params() || {}; return { ...DEFAULT_PARAMS, ...p }; }
+
+  function sliceRows(rows) {
+    const { sliceType, sliceId } = params();
+    return rows.filter(r => r.slice_type === sliceType && r.slice_id === sliceId);
+  }
+
+  // ---------- controls ----------
+  let optionsBuilt = false;
+  function buildFilterOptions() {
+    if (optionsBuilt) return;
+    const totals = dash.data('ar_totals');
+    if (totals.status !== 'ok') return;
+    const provSel = document.getElementById('arx-provider-select');
+    const paySel = document.getElementById('arx-payer-select');
+    const moSel = document.getElementById('arx-month-select');
+    const seenP = new Map(), seenY = new Map();
+    totals.data.forEach(r => {
+      if (r.slice_type === 'provider') seenP.set(r.slice_id, r.slice_label);
+      if (r.slice_type === 'payer') seenY.set(r.slice_id, r.slice_label);
+    });
+    provSel.innerHTML = '<option value="">Provider…</option>' + [...seenP].map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+    paySel.innerHTML = '<option value="">Payer…</option>' + [...seenY].map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+    moSel.innerHTML = MONTHS.map(m => `<option value="${m}">${m}</option>`).join('');
+    PAYER_LABELS = Object.fromEntries(seenY);
+    optionsBuilt = true;
+    buildTabNav();
+    buildDenialControls();
+    buildRepControls();
+
+    document.getElementById('arx-practice-chip').addEventListener('click', () => dash.setParams({ sliceType: 'practice', sliceId: 'all' }));
+    provSel.addEventListener('change', () => { if (provSel.value) { paySel.value = ''; dash.setParams({ sliceType: 'provider', sliceId: provSel.value }); } });
+    paySel.addEventListener('change', () => { if (paySel.value) { provSel.value = ''; dash.setParams({ sliceType: 'payer', sliceId: paySel.value }); } });
+    moSel.addEventListener('change', () => dash.setParams({ month: moSel.value }));
+
+    const bucketRow = document.getElementById('arx-bucket-row');
+    bucketRow.innerHTML = BUCKETS.map(b => `<button class="arx-chip" type="button" data-bucket="${b.id}">${b.label}</button>`).join('');
+    bucketRow.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-bucket]');
+      if (btn) dash.setParams({ bucket: btn.dataset.bucket });
+    });
+
+    const balRow = document.getElementById('arx-balance-row');
+    balRow.innerHTML = BALANCE_BUCKETS.map(b => `<button class="arx-chip" type="button" data-balance="${b.id}">${b.label}</button>`).join('');
+    balRow.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-balance]');
+      if (btn) dash.setParams({ balanceBucket: btn.dataset.balance });
+    });
+
+    document.getElementById('arx-liq-range-select').addEventListener('change', (ev) => dash.setParams({ liqRange: ev.target.value }));
+  }
+
+  function syncControls() {
+    const p = params();
+    document.getElementById('arx-practice-chip').setAttribute('aria-pressed', String(p.sliceType === 'practice'));
+    const provSel = document.getElementById('arx-provider-select');
+    const paySel = document.getElementById('arx-payer-select');
+    const moSel = document.getElementById('arx-month-select');
+    if (provSel) provSel.value = p.sliceType === 'provider' ? p.sliceId : '';
+    if (paySel) paySel.value = p.sliceType === 'payer' ? p.sliceId : '';
+    if (moSel) moSel.value = p.month;
+    document.querySelectorAll('#arx-bucket-row button[data-bucket]').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.bucket === p.bucket));
+    });
+    document.querySelectorAll('#arx-balance-row button[data-balance]').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.balance === p.balanceBucket));
+    });
+    const liqSel = document.getElementById('arx-liq-range-select');
+    if (liqSel) liqSel.value = p.liqRange;
+
+    document.querySelectorAll('.arx-tab[data-tab]').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.tab === p.tab)));
+    document.getElementById('arx-page-ar').hidden = p.tab !== 'ar';
+    document.getElementById('arx-page-denial').hidden = p.tab !== 'denial';
+    document.getElementById('arx-page-rep').hidden = p.tab !== 'rep';
+
+    const dMoSel = document.getElementById('arx-denial-month-select');
+    const dPaySel = document.getElementById('arx-denial-payer-select');
+    const dCptSel = document.getElementById('arx-denial-cpt-select');
+    if (dMoSel) dMoSel.value = p.month;
+    if (dPaySel) dPaySel.value = p.denialPayer;
+    if (dCptSel) dCptSel.value = p.denialCpt;
+    document.querySelectorAll('#arx-denial-axis-row button[data-axis]').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.axis === p.denialAxis)));
+
+    const rMoSel = document.getElementById('arx-rep-month-select');
+    const rSel = document.getElementById('arx-rep-select');
+    if (rMoSel) rMoSel.value = p.month;
+    if (rSel) rSel.value = p.repId;
+  }
+
+  function renderError(box) { box.innerHTML = '<div class="arx-error"><span class="arx-error-dot"></span>Failed to load</div>'; }
+
+  // ---------- tab navigation ----------
+  let tabBuilt = false;
+  function buildTabNav() {
+    if (tabBuilt) return;
+    tabBuilt = true;
+    document.getElementById('arx-tabbar').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-tab]');
+      if (btn) dash.setParams({ tab: btn.dataset.tab });
+    });
+  }
+
+  // ---------- Denial Collectibility: controls ----------
+  let denialControlsBuilt = false;
+  function buildDenialControls() {
+    if (denialControlsBuilt) return;
+    denialControlsBuilt = true;
+    const moSel = document.getElementById('arx-denial-month-select');
+    moSel.innerHTML = MONTHS.map(m => `<option value="${m}">${m}</option>`).join('');
+    moSel.addEventListener('change', () => dash.setParams({ month: moSel.value }));
+
+    const paySel = document.getElementById('arx-denial-payer-select');
+    paySel.innerHTML += Object.entries(PAYER_LABELS).map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+    paySel.addEventListener('change', () => dash.setParams({ denialPayer: paySel.value }));
+
+    const cptSel = document.getElementById('arx-denial-cpt-select');
+    cptSel.innerHTML += CPT_GROUPS.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+    cptSel.addEventListener('change', () => dash.setParams({ denialCpt: cptSel.value }));
+
+    const axisRow = document.getElementById('arx-denial-axis-row');
+    const axes = [{ id: 'category', label: 'Category' }, { id: 'payer', label: 'Payer' }, { id: 'cpt', label: 'CPT Group' }];
+    axisRow.innerHTML = axes.map(a => `<button class="arx-chip" type="button" data-axis="${a.id}">${a.label}</button>`).join('');
+    axisRow.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-axis]');
+      if (btn) dash.setParams({ denialAxis: btn.dataset.axis });
+    });
+  }
+
+  // ---------- Rep Productivity: controls ----------
+  let repControlsBuilt = false;
+  function buildRepControls() {
+    if (repControlsBuilt) return;
+    repControlsBuilt = true;
+    const moSel = document.getElementById('arx-rep-month-select');
+    moSel.innerHTML = MONTHS.map(m => `<option value="${m}">${m}</option>`).join('');
+    moSel.addEventListener('change', () => dash.setParams({ month: moSel.value }));
+
+    const repSel = document.getElementById('arx-rep-select');
+    repSel.innerHTML += REPS.map(r => `<option value="${r.id}">${r.label}</option>`).join('');
+    repSel.addEventListener('change', () => dash.setParams({ repId: repSel.value }));
+  }
+
+  // ---------- KPI delta pill + sparkline helpers ----------
+  function setDeltaPill(id, text, isGood, isFlat) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.classList.remove('is-good', 'is-bad', 'is-flat');
+    el.classList.add(isFlat ? 'is-flat' : (isGood ? 'is-good' : 'is-bad'));
+  }
+  function drawSpark(svgId, values, higherIsGood) {
+    const svg = d3.select('#' + svgId);
+    svg.selectAll('*').remove();
+    const node = svg.node();
+    if (!node || !values || values.length < 2) return;
+    const w = node.clientWidth || 120, h = 26;
+    svg.attr('viewBox', `0 0 ${w} ${h}`);
+    const x = d3.scaleLinear().domain([0, values.length - 1]).range([2, w - 2]);
+    const yDomain = d3.extent(values);
+    if (yDomain[0] === yDomain[1]) { yDomain[0] -= 1; yDomain[1] += 1; }
+    const y = d3.scaleLinear().domain(yDomain).range([h - 4, 3]);
+    const trendUp = values[values.length - 1] > values[0];
+    const flat = values[values.length - 1] === values[0];
+    const good = flat ? null : (higherIsGood ? trendUp : !trendUp);
+    const color = flat ? 'var(--arx-ink-muted)' : (good ? 'var(--arx-good)' : 'var(--arx-bad)');
+    const line = d3.line().x((d, i) => x(i)).y(d => y(d)).curve(d3.curveMonotoneX);
+    const area = d3.area().x((d, i) => x(i)).y0(h - 2).y1(d => y(d)).curve(d3.curveMonotoneX);
+    svg.append('path').attr('d', area(values)).attr('fill', color).attr('opacity', 0.1).attr('stroke', 'none');
+    svg.append('path').attr('d', line(values)).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 1.5);
+    svg.append('circle').attr('cx', x(values.length - 1)).attr('cy', y(values[values.length - 1])).attr('r', 2).attr('fill', color);
+  }
+  function monthSpark(rows, field, p) {
+    const idx = MONTHS.indexOf(p.month);
+    const start = Math.max(0, idx - 5);
+    const wanted = MONTHS.slice(start, idx + 1);
+    const bySlice = sliceRows(rows);
+    return wanted.map(m => { const r = bySlice.find(r => r.month === m); return r ? r[field] : null; }).filter(v => v != null);
+  }
+
+  // ---------- KPIs (weekly snapshot inside the selected month) ----------
+  function fillKpis() {
+    const weekly = dash.data('ar_weekly');
+    const totals = dash.data('ar_totals');
+    if (weekly.status !== 'ok') return;
+    const p = params();
+    const wk = sliceRows(weekly.data).filter(r => r.month === p.month).sort((a, b) => a.week - b.week);
+    if (wk.length < 2) return;
+    const cur = wk[wk.length - 1];
+    const prev = wk[wk.length - 2];
+    const totalRows = totals.status === 'ok' ? totals.data : [];
+
+    document.getElementById('arx-kpi-total-ar').textContent = fmtUSDcompact(cur.total_ar);
+    { const d = cur.total_ar - prev.total_ar; setDeltaPill('arx-kpi-total-ar-delta', fmtSignedUSDcompact(d), d <= 0, d === 0); }
+    drawSpark('arx-spark-total-ar', monthSpark(totalRows, 'total_ar', p), false);
+
+    document.getElementById('arx-kpi-91-365').textContent = fmtUSDcompact(cur.b91_365_ar);
+    { const d = cur.b91_365_ar - prev.b91_365_ar; setDeltaPill('arx-kpi-91-365-delta', fmtSignedUSDcompact(d), d <= 0, d === 0); }
+    drawSpark('arx-spark-91-365', monthSpark(totalRows.map(r => ({ ...r, _sum91: r.b91_365 + r.b365plus })), '_sum91', p), false);
+
+    document.getElementById('arx-kpi-365plus').textContent = fmtUSDcompact(cur.b365plus_ar);
+    { const d = cur.b365plus_ar - prev.b365plus_ar; setDeltaPill('arx-kpi-365plus-delta', fmtSignedUSDcompact(d), d <= 0, d === 0); }
+    drawSpark('arx-spark-365plus', monthSpark(totalRows, 'b365plus', p), false);
+
+    document.getElementById('arx-kpi-dar').textContent = fmtDays1(cur.dar_days) + ' days';
+    { const d = cur.dar_days - prev.dar_days; setDeltaPill('arx-kpi-dar-delta', (d>=0?'+':'') + d.toFixed(1) + ' days', d <= 0, Math.abs(d) < 0.05); }
+    drawSpark('arx-spark-dar', monthSpark(totalRows, 'dar_days', p), false);
+
+    document.getElementById('arx-kpi-liq').textContent = fmtPct1(cur.day45_liquidation_pct);
+    { const d = cur.day45_liquidation_pct - prev.day45_liquidation_pct; setDeltaPill('arx-kpi-liq-delta', (d>=0?'+':'') + d.toFixed(1) + ' pts', d >= 0, Math.abs(d) < 0.05); }
+    drawSpark('arx-spark-liq', monthSpark(totalRows, 'day45_liquidation_pct', p), true);
+  }
+
+  // ---------- takeaway ----------
+  function fillTakeaway() {
+    const totals = dash.data('ar_totals'), bdi = dash.data('bucket_driver_impact');
+    if (totals.status !== 'ok' || bdi.status !== 'ok') return;
+    const p = params();
+    const row = sliceRows(totals.data).find(r => r.month === p.month);
+    if (!row) return;
+    const pct = ((row.b31_60+row.b61_90+row.b91_365+row.b365plus) / row.total_ar * 100).toFixed(0);
+
+    let bRows = sliceRows(bdi.data).filter(r => r.month === p.month);
+    bRows = p.bucket === 'all' ? bRows : bRows.filter(r => r.bucket === p.bucket);
+    const sums = { denial: 0, backlog: 0, resolution: 0 };
+    bRows.forEach(r => { sums.denial += r.denial_impact; sums.backlog += r.backlog_impact; sums.resolution += r.resolution_impact; });
+    const top = Object.entries(sums).sort((a, b) => b[1] - a[1])[0];
+    const driverName = { denial: 'denial activity', backlog: 'the open-claim backlog', resolution: 'resolution quality' }[top[0]];
+    const sliceLabel = row.slice_label || '';
+    const scope = p.sliceType === 'practice' ? 'Across the practice' : `For ${sliceLabel}`;
+    const bucketPhrase = p.bucket === 'all' ? `${pct}% of AR is past 30 days` : `the ${bucketLabel(p.bucket).toLowerCase()} bucket`;
+    document.getElementById('arx-takeaway').textContent =
+      `${scope}, ${p.month}: ${bucketPhrase}. The largest contributor right now is ${driverName}.`;
+  }
+
+  function titleCard() {
+    const p = params();
+    const totals = dash.data('ar_totals');
+    const label = totals.status === 'ok' ? (sliceRows(totals.data)[0] || {}).slice_label : '';
+    document.getElementById('arx-main-title').textContent = `Monthly AR & Driver Trend — ${label || ''}`;
+    document.getElementById('arx-payer-title').textContent = `Responsible Payer Name — ${p.month}`;
+    document.getElementById('arx-attr-col-res').textContent = p.bucket === 'all' ? 'Resolution %' : `Resolution %, ${bucketLabel(p.bucket)}`;
+  }
+
+  // ---------- DOS Age table ----------
+  function fillDosTable() {
+    const trend = dash.data('ar_trend');
+    if (trend.status !== 'ok') return;
+    const p = params();
+    const rows = sliceRows(trend.data).filter(r => r.month === p.month);
+    const tbody = document.querySelector('#arx-dos-table tbody');
+    tbody.innerHTML = '';
+    let totAll = 0, totIns = 0, totPt = 0;
+    const bucketAmts = ALL5_BUCKET_IDS.map(b => {
+      const row = rows.find(r => r.bucket === b);
+      const amt = row ? row.amount : 0;
+      const insShare = INS_SHARE_BY_BUCKET[b] ?? 0.82;
+      const ins = amt * insShare, pt = amt * (1 - insShare);
+      totAll += amt; totIns += ins; totPt += pt;
+      return { b, amt, ins, pt };
+    });
+    bucketAmts.forEach(({ b, amt, ins, pt }) => {
+      const pctOfTotal = totAll ? amt / totAll * 100 : 0;
+      const pctIns = totIns ? ins / totIns * 100 : 0;
+      const pctPt = totPt ? pt / totPt * 100 : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${ALL5_LABELS[b]}</td><td>${fmtUSD0(ins)}</td><td>${pctIns.toFixed(1)}%</td><td>${fmtUSD0(pt)}</td><td>${pctPt.toFixed(1)}%</td><td>${fmtUSD0(amt)}</td><td>${pctOfTotal.toFixed(1)}%</td>`;
+      tbody.appendChild(tr);
+    });
+    const trT = document.createElement('tr');
+    trT.className = 'is-total';
+    trT.innerHTML = `<td>Total</td><td>${fmtUSD0(totIns)}</td><td>100.0%</td><td>${fmtUSD0(totPt)}</td><td>100.0%</td><td>${fmtUSD0(totAll)}</td><td>100.0%</td>`;
+    tbody.appendChild(trT);
+  }
+
+  // ---------- Follow-up Backlog table ----------
+  function fillFollowupTable() {
+    const fb = dash.data('followup_backlog');
+    if (fb.status !== 'ok') return;
+    const p = params();
+    const rows = sliceRows(fb.data).filter(r => r.month === p.month);
+    const balBuckets = p.balanceBucket === 'all' ? ['gt5000','b1000_5000','lt1000'] : [p.balanceBucket];
+    const tbody = document.querySelector('#arx-followup-table tbody');
+    tbody.innerHTML = '';
+    const grand = { count: {lag31_45:0,lag46_90:0,lag90plus:0}, balance: {lag31_45:0,lag46_90:0,lag90plus:0} };
+    rows.forEach(r => { grand.count[r.lag_bucket] += r.count; grand.balance[r.lag_bucket] += r.balance; });
+    const grandCountTotal = LAG_BUCKETS.reduce((s,l)=>s+grand.count[l],0);
+    const grandBalTotal = LAG_BUCKETS.reduce((s,l)=>s+grand.balance[l],0);
+
+    const labelMap = { gt5000: '>$5000', b1000_5000: '$1000–$5000', lt1000: '<$1000' };
+    // each cell stacks: balance $ + its own % of column $ (bold) on top, count + its own % of column claims underneath —
+    // shown side by side so a bucket carrying fewer claims but a disproportionate dollar share is visible at a glance.
+    const cell = (count, colCountTotal, balance, colBalTotal) => {
+      const pctBal = colBalTotal ? (balance / colBalTotal * 100) : 0;
+      const pctCount = colCountTotal ? (count / colCountTotal * 100) : 0;
+      const skew = pctBal - pctCount >= 8; // $ share notably outpaces claim share -> flag it
+      return `<td><div class="arx-cell-main">${fmtUSD0(balance)} <span class="arx-cell-pct${skew ? ' is-skew' : ''}">${pctBal.toFixed(1)}% of $</span></div><div class="arx-cell-sub">${fmtInt(count)} claims &middot; ${pctCount.toFixed(1)}% of claims</div></td>`;
+    };
+    balBuckets.forEach(bb => {
+      const bRows = rows.filter(r => r.balance_bucket === bb);
+      let rowCountTotal = 0, rowBalTotal = 0;
+      const cells = LAG_BUCKETS.map(lb => {
+        const r = bRows.find(x => x.lag_bucket === lb) || { count: 0, balance: 0 };
+        rowCountTotal += r.count; rowBalTotal += r.balance;
+        return cell(r.count, grandCountTotal_lb(grand, lb), r.balance, grand.balance[lb]);
+      }).join('');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${labelMap[bb]}</td>${cells}${cell(rowCountTotal, grandCountTotal, rowBalTotal, grandBalTotal)}`;
+      tbody.appendChild(tr);
+    });
+
+    const trT = document.createElement('tr');
+    trT.className = 'is-total';
+    const totalCells = LAG_BUCKETS.map(lb => cell(grand.count[lb], grand.count[lb], grand.balance[lb], grand.balance[lb])).join('');
+    trT.innerHTML = `<td>Total</td>${totalCells}${cell(grandCountTotal, grandCountTotal, grandBalTotal, grandBalTotal)}`;
+    tbody.appendChild(trT);
+  }
+  function grandCountTotal_lb(grand, lb) { return grand.count[lb]; }
+
+  // ---------- Day 45 Liquidation Trend chart ----------
+  function drawLiquidationChart() {
+    const box = document.getElementById('arx-liq-box');
+    const totals = dash.data('ar_totals');
+    if (totals.status === 'error' || totals.status === 'connect') { renderError(box); return; }
+    if (totals.status !== 'ok') return;
+    const p = params();
+    const n = parseInt(p.liqRange, 10) || 12;
+    const allRows = sliceRows(totals.data);
+    const rows = allRows.slice(Math.max(0, allRows.length - n));
+    if (!rows.length) return;
+
+    const width = box.clientWidth || 700, height = 220;
+    const margin = { top: 30, right: 16, bottom: 24, left: 16 };
+    const svg = d3.select('#arx-liq-svg').attr('viewBox', `0 0 ${width} ${height}`).attr('width', '100%').attr('height', height);
+    svg.selectAll('*').remove();
+    box.style.minHeight = height + 'px';
+
+    const x = d3.scalePoint().domain(rows.map(r => r.month)).range([margin.left, width - margin.right]);
+    const vals = rows.map(r => r.day45_liquidation_pct);
+    const yMin = Math.min(d3.min(vals), 91) - 5, yMax = Math.max(d3.max(vals), 91) + 5;
+    const y = d3.scaleLinear().domain([yMin, yMax]).range([height - margin.bottom, margin.top]);
+
+    svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(91)).attr('y2', y(91))
+      .attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1).attr('stroke-dasharray', '4,3');
+    svg.append('text').attr('x', width - margin.right).attr('y', y(91) - 6).attr('text-anchor', 'end')
+      .attr('fill', 'var(--color-fg-muted)').attr('font-size', 'var(--cds-font-size-caption)').text('91% target');
+
+    const line = d3.line().x(r => x(r.month)).y(r => y(r.day45_liquidation_pct)).curve(d3.curveLinear);
+    svg.append('path').datum(rows).attr('d', line).attr('fill', 'none').attr('stroke', 'var(--arx-accent)').attr('stroke-width', 2.25)
+      .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round');
+    svg.selectAll('circle').data(rows).join('circle').attr('cx', r => x(r.month)).attr('cy', r => y(r.day45_liquidation_pct)).attr('r', 3.5)
+      .attr('fill', 'var(--color-panel)').attr('stroke', r => r.day45_liquidation_pct >= 91 ? 'var(--arx-good)' : 'var(--arx-accent)').attr('stroke-width', 2);
+    svg.selectAll('text.val').data(rows).join('text').attr('x', r => x(r.month)).attr('y', r => y(r.day45_liquidation_pct) - 10).attr('text-anchor', 'middle')
+      .attr('fill', r => r.day45_liquidation_pct >= 91 ? 'var(--arx-good)' : 'var(--arx-ink)').attr('font-size', '11.5px').attr('font-weight', '600')
+      .text(r => r.day45_liquidation_pct.toFixed(1) + '%');
+    svg.selectAll('text.mo').data(rows).join('text').attr('x', r => x(r.month)).attr('y', height - 4).attr('text-anchor', 'middle')
+      .attr('fill', 'var(--color-fg-muted)').attr('font-size', 'var(--cds-font-size-caption)').text(r => r.month);
+  }
+
+  // ---------- Responsible Payer Name table ----------
+  function fillPayerTable() {
+    const trend = dash.data('ar_trend');
+    if (trend.status !== 'ok') return;
+    const p = params();
+    const payerRows = trend.data.filter(r => r.slice_type === 'payer' && r.month === p.month);
+    const payers = [...new Map(payerRows.map(r => [r.slice_id, r.slice_label])).entries()];
+    const tbody = document.querySelector('#arx-payer-table tbody');
+    tbody.innerHTML = '';
+    const grand = {}; ALL5_BUCKET_IDS.forEach(b => grand[b] = 0);
+    const payerTotals = payers.map(([id, label]) => {
+      const rows = payerRows.filter(r => r.slice_id === id);
+      let total = 0;
+      ALL5_BUCKET_IDS.forEach(b => {
+        const r = rows.find(x => x.bucket === b);
+        const amt = r ? r.amount : 0;
+        total += amt; grand[b] += amt;
+      });
+      return { id, label, total };
+    });
+    const grandTotal = ALL5_BUCKET_IDS.reduce((s, b) => s + grand[b], 0);
+    payers.forEach(([id, label]) => {
+      const rows = payerRows.filter(r => r.slice_id === id);
+      const pt = payerTotals.find(x => x.id === id);
+      const cells = ALL5_BUCKET_IDS.map(b => {
+        const r = rows.find(x => x.bucket === b);
+        const amt = r ? r.amount : 0;
+        return `<td>${fmtUSDcompact(amt)}</td>`;
+      }).join('');
+      const pct = grandTotal ? (pt.total / grandTotal * 100) : 0;
+      const tr = document.createElement('tr');
+      tr.className = 'is-clickable';
+      tr.setAttribute('aria-current', String(p.sliceType === 'payer' && p.sliceId === id));
+      tr.innerHTML = `<td>${label}</td>${cells}<td>${fmtUSDcompact(pt.total)}</td><td>${pct.toFixed(1)}%</td>`;
+      tr.addEventListener('click', () => dash.setParams({ sliceType: 'payer', sliceId: id }));
+      tbody.appendChild(tr);
+    });
+    const trT = document.createElement('tr');
+    trT.className = 'is-total';
+    trT.innerHTML = `<td>Total</td>${ALL5_BUCKET_IDS.map(b => `<td>${fmtUSDcompact(grand[b])}</td>`).join('')}<td>${fmtUSDcompact(grandTotal)}</td><td>100.0%</td>`;
+    tbody.appendChild(trT);
+  }
+
+  // ---------- Monthly AR & Driver Trend table ----------
+  function currentDriverSeries() {
+    const bdi = dash.data('bucket_driver_impact');
+    if (bdi.status !== 'ok') return { status: bdi.status, rows: [] };
+    const p = params();
+    let rows = sliceRows(bdi.data);
+    rows = p.bucket === 'all' ? rows.filter(r => AGED_BUCKET_IDS.includes(r.bucket)) : rows.filter(r => r.bucket === p.bucket);
+    const byMonth = d3.rollup(rows, vs => {
+      const followup = d3.sum(vs, v => v.followup_dollars);
+      const resolved = d3.sum(vs, v => v.resolved_dollars);
+      return {
+        month: vs[0].month,
+        denied_dollars: d3.sum(vs, v => v.denied_dollars),
+        followup_dollars: followup,
+        resolved_dollars: resolved,
+        resolution_pct_of_followup: followup ? (resolved / followup * 100) : 0,
+      };
+    }, r => r.month);
+    return { status: 'ok', rows: MONTHS.map(m => byMonth.get(m)).filter(Boolean) };
+  }
+
+  function fillAttributionTable() {
+    const totals = dash.data('ar_totals'), trend = dash.data('ar_trend'), fb = dash.data('followup_backlog');
+    const series = currentDriverSeries();
+    if (totals.status !== 'ok' || trend.status !== 'ok' || fb.status !== 'ok' || series.status !== 'ok') return;
+    const p = params();
+    const totalRows = sliceRows(totals.data);
+    const trendRows = sliceRows(trend.data);
+    const fbRows = sliceRows(fb.data);
+    const tbody = document.querySelector('#arx-attr-table tbody');
+    tbody.innerHTML = '';
+
+    MONTHS.forEach(m => {
+      const tRow = totalRows.find(r => r.month === m);
+      if (!tRow) return;
+      const drv = series.rows.find(r => r.month === m) || { denied_dollars: 0, resolution_pct_of_followup: 0 };
+      const fbM = fbRows.filter(r => r.month === m);
+      const followupBacklog = d3.sum(fbM, r => r.balance);
+
+      const resColor = drv.resolution_pct_of_followup >= 85 ? 'var(--color-ok)' : 'var(--color-bad)';
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-key', m);
+      tr.setAttribute('aria-current', String(m === p.month));
+      tr.innerHTML = `<td>${m}</td><td>${fmtUSDcompact(tRow.total_ar)}</td>` +
+        `<td>${fmtUSDcompact(tRow.b0_30)}</td><td>${fmtUSDcompact(tRow.b31_60)}</td><td>${fmtUSDcompact(tRow.b61_90)}</td><td>${fmtUSDcompact(tRow.b91_365)}</td><td>${fmtUSDcompact(tRow.b365plus)}</td>` +
+        `<td>${fmtUSDcompact(drv.denied_dollars)}</td><td>${fmtUSDcompact(followupBacklog)}</td>` +
+        `<td style="color:${resColor}">${drv.resolution_pct_of_followup.toFixed(1)}%</td>`;
+      tr.addEventListener('click', () => dash.setParams({ month: m }));
+      tr.className = 'is-clickable';
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- shared: inline magnitude bar for a rate cell ----------
+  function rateCell(pct) {
+    const cls = pct >= 55 ? 'is-good' : (pct < 30 ? 'is-bad' : '');
+    const w = Math.max(2, Math.min(100, pct));
+    return `<span class="arx-bar-wrap"><span class="arx-bar-fill ${cls}" style="width:${w}%"></span></span><span class="arx-rate-text">${pct.toFixed(1)}%</span>`;
+  }
+
+  // =====================================================================
+  // ---------- Denial Collectibility page ----------
+  // =====================================================================
+  function denialRowsForMonth(month) {
+    const dc = dash.data('denial_collectibility');
+    if (dc.status !== 'ok') return [];
+    const p = params();
+    return dc.data.filter(r => r.month === month
+      && (p.denialPayer === 'all' || r.payer_id === p.denialPayer)
+      && (p.denialCpt === 'all' || r.cpt_group === p.denialCpt));
+  }
+
+  function fillDenialKpis() {
+    const dc = dash.data('denial_collectibility');
+    if (dc.status !== 'ok') return;
+    const p = params();
+    const idx = MONTHS.indexOf(p.month);
+    const curRows = denialRowsForMonth(p.month);
+    const prevRows = idx > 0 ? denialRowsForMonth(MONTHS[idx - 1]) : [];
+    const curDenied = d3.sum(curRows, r => r.denied_dollars);
+    const curResolved = d3.sum(curRows, r => r.resolved_dollars);
+    const curRate = curDenied ? curResolved / curDenied * 100 : 0;
+    const prevDenied = d3.sum(prevRows, r => r.denied_dollars);
+    const prevResolved = d3.sum(prevRows, r => r.resolved_dollars);
+    const prevRate = prevDenied ? prevResolved / prevDenied * 100 : 0;
+
+    document.getElementById('arx-dkpi-denied').textContent = fmtUSDcompact(curDenied);
+    { const d = curDenied - prevDenied; setDeltaPill('arx-dkpi-denied-delta', fmtSignedUSDcompact(d), d <= 0, Math.abs(d) < 1); }
+    document.getElementById('arx-dkpi-resolved').textContent = fmtUSDcompact(curResolved);
+    { const d = curResolved - prevResolved; setDeltaPill('arx-dkpi-resolved-delta', fmtSignedUSDcompact(d), d >= 0, Math.abs(d) < 1); }
+    document.getElementById('arx-dkpi-rate').textContent = fmtPct1(curRate);
+    { const d = curRate - prevRate; setDeltaPill('arx-dkpi-rate-delta', (d >= 0 ? '+' : '') + d.toFixed(1) + ' pts', d >= 0, Math.abs(d) < 0.1); }
+
+    const start = Math.max(0, idx - 5);
+    const wanted = MONTHS.slice(start, idx + 1);
+    const deniedSeries = wanted.map(m => d3.sum(denialRowsForMonth(m), r => r.denied_dollars));
+    const resolvedSeries = wanted.map(m => d3.sum(denialRowsForMonth(m), r => r.resolved_dollars));
+    const rateSeries = wanted.map(m => { const rows = denialRowsForMonth(m); const den = d3.sum(rows, r => r.denied_dollars); const res = d3.sum(rows, r => r.resolved_dollars); return den ? res / den * 100 : 0; });
+    drawSpark('arx-dspark-denied', deniedSeries, false);
+    drawSpark('arx-dspark-resolved', resolvedSeries, true);
+    drawSpark('arx-dspark-rate', rateSeries, true);
+  }
+
+  function fillDenialTakeaway(entries) {
+    const el = document.getElementById('arx-denial-takeaway');
+    if (!entries.length) { el.textContent = '—'; return; }
+    const best = entries[0], worst = entries[entries.length - 1];
+    el.textContent = `Most collectible: ${best.label} (${best.rate.toFixed(0)}%) · Least collectible: ${worst.label} (${worst.rate.toFixed(0)}%).`;
+  }
+
+  function fillDenialTable() {
+    const dc = dash.data('denial_collectibility');
+    if (dc.status !== 'ok') return;
+    const p = params();
+    const rows = denialRowsForMonth(p.month);
+    const axis = p.denialAxis;
+    const keyFn = axis === 'category' ? r => r.denial_category : axis === 'payer' ? r => r.payer_id : r => r.cpt_group;
+    const labelFn = axis === 'category' ? catLabel : axis === 'payer' ? (id => PAYER_LABELS[id] || id) : cptLabel;
+
+    const grouped = d3.rollup(rows, vs => ({
+      denied: d3.sum(vs, v => v.denied_dollars), resolved: d3.sum(vs, v => v.resolved_dollars), count: d3.sum(vs, v => v.denied_count),
+    }), keyFn);
+    let entries = [...grouped.entries()].map(([id, agg]) => ({ id, label: labelFn(id), ...agg, rate: agg.denied ? agg.resolved / agg.denied * 100 : 0 }));
+    entries.sort((a, b) => b.rate - a.rate);
+
+    const axisLabel = axis === 'category' ? 'Denial Category' : axis === 'payer' ? 'Payer' : 'CPT Group';
+    document.getElementById('arx-denial-col1').textContent = axisLabel;
+    document.getElementById('arx-denial-table-title').textContent = 'Collectibility by ' + axisLabel;
+
+    const tbody = document.querySelector('#arx-denial-table tbody');
+    tbody.innerHTML = '';
+    entries.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${e.label}</td><td>${fmtUSD0(e.denied)}</td><td>${fmtUSD0(e.resolved)}</td><td>${rateCell(e.rate)}</td><td>${fmtInt(e.count)}</td>`;
+      if (axis === 'category') {
+        tr.className = 'is-clickable';
+        tr.setAttribute('aria-current', String(e.id === p.denialDrillCat));
+        tr.addEventListener('click', () => dash.setParams({ denialDrillCat: e.id }));
+      }
+      tbody.appendChild(tr);
+    });
+    const grandDenied = d3.sum(entries, e => e.denied), grandResolved = d3.sum(entries, e => e.resolved);
+    const trT = document.createElement('tr');
+    trT.className = 'is-total';
+    trT.innerHTML = `<td>Total</td><td>${fmtUSD0(grandDenied)}</td><td>${fmtUSD0(grandResolved)}</td><td>${rateCell(grandDenied ? grandResolved / grandDenied * 100 : 0)}</td><td>${fmtInt(d3.sum(entries, e => e.count))}</td>`;
+    tbody.appendChild(trT);
+
+    fillDenialTakeaway(entries);
+  }
+
+  function fillDenialDrill() {
+    const p = params();
+    const titleEl = document.getElementById('arx-denial-drill-title');
+    const noteEl = document.getElementById('arx-denial-drill-note');
+    const head = document.getElementById('arx-denial-drill-head');
+    const tbody = document.querySelector('#arx-denial-drill-table tbody');
+
+    if (p.denialAxis !== 'category' || p.denialDrillCat === 'none') {
+      titleEl.textContent = 'Payer × CPT breakdown';
+      noteEl.textContent = p.denialAxis !== 'category'
+        ? 'Switch "View by" to Category, then click a row above to see that category\'s success rate across every payer × CPT combination in one view.'
+        : 'Click a category row above to see its success rate across every payer × CPT combination in one view.';
+      head.innerHTML = '';
+      tbody.innerHTML = '<tr><td class="arx-empty-note">No category selected.</td></tr>';
+      return;
+    }
+
+    const payerIds = Object.keys(PAYER_LABELS);
+    titleEl.textContent = `${catLabel(p.denialDrillCat)} — Success Rate by Payer × CPT`;
+    noteEl.textContent = `${p.month}. The full three-way view: this category's collectibility broken out by every payer and CPT group.`;
+    head.innerHTML = '<th>CPT Group</th>' + payerIds.map(id => `<th>${PAYER_LABELS[id]}</th>`).join('') + '<th>Total</th>';
+
+    const dc = dash.data('denial_collectibility');
+    const rows = dc.status === 'ok' ? dc.data.filter(r => r.month === p.month && r.denial_category === p.denialDrillCat) : [];
+    const byKey = new Map(rows.map(r => [r.payer_id + '|' + r.cpt_group, r]));
+
+    tbody.innerHTML = '';
+    CPT_GROUPS.forEach(cpt => {
+      let rowDenied = 0, rowResolved = 0;
+      const cells = payerIds.map(pid => {
+        const r = byKey.get(pid + '|' + cpt.id);
+        const denied = r ? r.denied_dollars : 0, resolved = r ? r.resolved_dollars : 0;
+        rowDenied += denied; rowResolved += resolved;
+        return `<td>${rateCell(denied ? resolved / denied * 100 : 0)}</td>`;
+      }).join('');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${cpt.label}</td>${cells}<td>${rateCell(rowDenied ? rowResolved / rowDenied * 100 : 0)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // =====================================================================
+  // ---------- A/R Rep Productivity page ----------
+  // =====================================================================
+  function repDenialRowsForMonth(month, repId) {
+    const rdb = dash.data('rep_denial_breakdown');
+    if (rdb.status !== 'ok') return [];
+    return rdb.data.filter(r => r.month === month && (repId === 'all' || r.rep_id === repId));
+  }
+  function repProdRowsForMonth(month, repId) {
+    const rp = dash.data('rep_productivity_monthly');
+    if (rp.status !== 'ok') return [];
+    return rp.data.filter(r => r.month === month && (repId === 'all' || r.rep_id === repId));
+  }
+
+  function fillRepTakeaway(p) {
+    const el = document.getElementById('arx-rep-takeaway');
+    el.textContent = p.repId === 'all'
+      ? 'Team view — select a rep from the leaderboard to see their individual pace and strongest denial categories.'
+      : `Viewing ${repLabel(p.repId)} for ${p.month}.`;
+  }
+
+  function fillRepKpis() {
+    const p = params();
+    const idx = MONTHS.indexOf(p.month);
+    const who = p.repId === 'all' ? 'Team' : repLabel(p.repId);
+    document.getElementById('arx-rkpi-claims-label').textContent = who + ' Avg Claims / Day';
+    document.getElementById('arx-rkpi-achieved-label').textContent = who + ' Achieved vs. Target';
+    document.getElementById('arx-rkpi-success-label').textContent = who + ' Denial Resolution Success';
+    const curProd = repProdRowsForMonth(p.month, p.repId);
+    const prevProd = idx > 0 ? repProdRowsForMonth(MONTHS[idx - 1], p.repId) : [];
+    const curDenial = repDenialRowsForMonth(p.month, p.repId);
+    const prevDenial = idx > 0 ? repDenialRowsForMonth(MONTHS[idx - 1], p.repId) : [];
+
+    const avgClaims = curProd.length ? d3.mean(curProd, r => r.avg_claims_per_day) : 0;
+    const prevAvgClaims = prevProd.length ? d3.mean(prevProd, r => r.avg_claims_per_day) : 0;
+    const achieved = curProd.length ? d3.mean(curProd, r => r.achieved_pct) : 0;
+    const prevAchieved = prevProd.length ? d3.mean(prevProd, r => r.achieved_pct) : 0;
+    const denied = d3.sum(curDenial, r => r.denied_dollars), resolved = d3.sum(curDenial, r => r.resolved_dollars);
+    const rate = denied ? resolved / denied * 100 : 0;
+    const prevDenied = d3.sum(prevDenial, r => r.denied_dollars), prevResolved = d3.sum(prevDenial, r => r.resolved_dollars);
+    const prevRate = prevDenied ? prevResolved / prevDenied * 100 : 0;
+
+    document.getElementById('arx-rkpi-claims').textContent = avgClaims.toFixed(1);
+    { const d = avgClaims - prevAvgClaims; setDeltaPill('arx-rkpi-claims-delta', (d >= 0 ? '+' : '') + d.toFixed(1), d >= 0, Math.abs(d) < 0.1); }
+    document.getElementById('arx-rkpi-achieved').textContent = fmtPct1(achieved);
+    { const d = achieved - prevAchieved; setDeltaPill('arx-rkpi-achieved-delta', (d >= 0 ? '+' : '') + d.toFixed(1) + ' pts', d >= 0, Math.abs(d) < 0.1); }
+    document.getElementById('arx-rkpi-success').textContent = fmtPct1(rate);
+    { const d = rate - prevRate; setDeltaPill('arx-rkpi-success-delta', (d >= 0 ? '+' : '') + d.toFixed(1) + ' pts', d >= 0, Math.abs(d) < 0.1); }
+
+    const start = Math.max(0, idx - 5);
+    const wanted = MONTHS.slice(start, idx + 1);
+    const claimsSeries = wanted.map(m => { const rows = repProdRowsForMonth(m, p.repId); return rows.length ? d3.mean(rows, r => r.avg_claims_per_day) : null; }).filter(v => v != null);
+    const achievedSeries = wanted.map(m => { const rows = repProdRowsForMonth(m, p.repId); return rows.length ? d3.mean(rows, r => r.achieved_pct) : null; }).filter(v => v != null);
+    const rateSeries = wanted.map(m => { const rows = repDenialRowsForMonth(m, p.repId); const den = d3.sum(rows, r => r.denied_dollars); const res = d3.sum(rows, r => r.resolved_dollars); return den ? res / den * 100 : null; }).filter(v => v != null);
+    drawSpark('arx-rspark-claims', claimsSeries, true);
+    drawSpark('arx-rspark-achieved', achievedSeries, true);
+    drawSpark('arx-rspark-success', rateSeries, true);
+
+    fillRepTakeaway(p);
+  }
+
+  function drawRepChart() {
+    const rpd = dash.data('rep_productivity_daily');
+    const box = document.getElementById('arx-rep-chart-box');
+    if (rpd.status !== 'ok') { renderError(box); return; }
+    const p = params();
+    const rows = rpd.data.filter(r => r.month === p.month && (p.repId === 'all' || r.rep_id === p.repId));
+    if (!rows.length) { box.innerHTML = '<div class="arx-empty-note">No data for this selection.</div>'; return; }
+    box.innerHTML = '<svg id="arx-rep-chart-svg"></svg>';
+
+    const byDay = d3.rollup(rows, vs => d3.sum(vs, v => v.claims_worked), v => v.day);
+    const target = p.repId === 'all' ? TARGET_PER_DAY * REPS.length : TARGET_PER_DAY;
+    const days = [...byDay.keys()].sort((a, b) => a - b);
+
+    const width = box.clientWidth || 700, height = 220;
+    const margin = { top: 24, right: 16, bottom: 24, left: 16 };
+    const svg = d3.select('#arx-rep-chart-svg').attr('viewBox', `0 0 ${width} ${height}`).attr('width', '100%').attr('height', height);
+    box.style.minHeight = height + 'px';
+
+    const x = d3.scaleBand().domain(days.map(String)).range([margin.left, width - margin.right]).padding(0.3);
+    const yMax = Math.max(d3.max(days, d => byDay.get(d)) || 0, target) * 1.15;
+    const y = d3.scaleLinear().domain([0, yMax]).range([height - margin.bottom, margin.top]);
+
+    svg.selectAll('rect.bar').data(days).join('rect').attr('class', 'bar')
+      .attr('x', d => x(String(d))).attr('width', x.bandwidth())
+      .attr('y', d => y(byDay.get(d))).attr('height', d => y(0) - y(byDay.get(d)))
+      .attr('fill', d => byDay.get(d) >= target ? 'var(--arx-good)' : 'var(--arx-accent)').attr('rx', 2);
+
+    svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(target)).attr('y2', y(target))
+      .attr('stroke', 'var(--arx-ink-muted)').attr('stroke-width', 1).attr('stroke-dasharray', '4,3');
+    svg.append('text').attr('x', width - margin.right).attr('y', y(target) - 6).attr('text-anchor', 'end')
+      .attr('fill', 'var(--arx-ink-muted)').attr('font-size', '11px').text(`target: ${target}/day`);
+
+    svg.selectAll('text.day').data(days).join('text').attr('class', 'day')
+      .attr('x', d => x(String(d)) + x.bandwidth() / 2).attr('y', height - 6).attr('text-anchor', 'middle')
+      .attr('fill', 'var(--arx-ink-muted)').attr('font-size', '11px').text(d => 'Day ' + d);
+
+    document.getElementById('arx-rep-chart-title').textContent = p.repId === 'all' ? 'Daily Productivity vs. Target — Whole Team' : `Daily Productivity vs. Target — ${repLabel(p.repId)}`;
+  }
+
+  function fillRepLeaderboard() {
+    const p = params();
+    const prod = repProdRowsForMonth(p.month, 'all');
+    const denial = repDenialRowsForMonth(p.month, 'all');
+    const byRepDenial = d3.rollup(denial, vs => ({ denied: d3.sum(vs, v => v.denied_dollars), resolved: d3.sum(vs, v => v.resolved_dollars) }), v => v.rep_id);
+    const byRepProd = new Map(prod.map(r => [r.rep_id, r]));
+
+    let entries = REPS.map(r => {
+      const d = byRepDenial.get(r.id) || { denied: 0, resolved: 0 };
+      const pr = byRepProd.get(r.id) || { avg_claims_per_day: 0, achieved_pct: 0 };
+      const rate = d.denied ? d.resolved / d.denied * 100 : 0;
+      return { id: r.id, label: r.label, claims: pr.avg_claims_per_day, achieved: pr.achieved_pct, denied: d.denied, resolved: d.resolved, rate };
+    });
+    entries.sort((a, b) => b.rate - a.rate);
+
+    const tbody = document.querySelector('#arx-rep-leader-table tbody');
+    tbody.innerHTML = '';
+    entries.forEach((e, i) => {
+      const tr = document.createElement('tr');
+      tr.className = 'is-clickable';
+      tr.setAttribute('aria-current', String(e.id === p.repId));
+      tr.innerHTML = `<td><span class="arx-leader-name">${i + 1}. ${e.label}</span></td><td>${e.claims.toFixed(1)}</td><td>${fmtPct1(e.achieved)}</td>` +
+        `<td>${fmtUSD0(e.denied)}</td><td>${fmtUSD0(e.resolved)}</td><td>${rateCell(e.rate)}</td>`;
+      tr.addEventListener('click', () => dash.setParams({ repId: e.id }));
+      tbody.appendChild(tr);
+    });
+  }
+
+  function fillRepDrill() {
+    const p = params();
+    const titleEl = document.getElementById('arx-rep-drill-title');
+    const noteEl = document.getElementById('arx-rep-drill-note');
+    const head = document.getElementById('arx-rep-drill-head');
+    const tbody = document.querySelector('#arx-rep-drill-table tbody');
+
+    if (p.repId === 'all') {
+      titleEl.textContent = 'Where a rep is more successful';
+      noteEl.textContent = 'Select a rep from the leaderboard above, or the dropdown, to see their success rate by denial category × payer.';
+      head.innerHTML = '';
+      tbody.innerHTML = '<tr><td class="arx-empty-note">No rep selected.</td></tr>';
+      return;
+    }
+
+    const payerIds = Object.keys(PAYER_LABELS);
+    titleEl.textContent = `${repLabel(p.repId)} — Success Rate by Category × Payer`;
+    noteEl.textContent = `${p.month}. Green cells are this rep's strongest combinations; red cells are their weakest.`;
+    head.innerHTML = '<th>Denial Category</th>' + payerIds.map(id => `<th>${PAYER_LABELS[id]}</th>`).join('') + '<th>Total</th>';
+
+    const rows = repDenialRowsForMonth(p.month, p.repId);
+    const byKey = new Map(rows.map(r => [r.denial_category + '|' + r.payer_id, r]));
+
+    tbody.innerHTML = '';
+    DENIAL_CATEGORIES.forEach(cat => {
+      let rowDenied = 0, rowResolved = 0;
+      const cells = payerIds.map(pid => {
+        const r = byKey.get(cat.id + '|' + pid);
+        const denied = r ? r.denied_dollars : 0, resolved = r ? r.resolved_dollars : 0;
+        rowDenied += denied; rowResolved += resolved;
+        return `<td>${rateCell(denied ? resolved / denied * 100 : 0)}</td>`;
+      }).join('');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${cat.label}</td>${cells}<td>${rateCell(rowDenied ? rowResolved / rowDenied * 100 : 0)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const TARGET_PER_DAY = 45;
+
+  dash.onData(() => {
+    buildFilterOptions();
+    syncControls();
+    fillKpis();
+    fillTakeaway();
+    titleCard();
+    fillDosTable();
+    fillFollowupTable();
+    drawLiquidationChart();
+    fillPayerTable();
+    fillAttributionTable();
+
+    fillDenialKpis();
+    fillDenialTable();
+    fillDenialDrill();
+
+    fillRepKpis();
+    drawRepChart();
+    fillRepLeaderboard();
+    fillRepDrill();
+  });
+})();
+
+</script>
+</body>
+</html>
