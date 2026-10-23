@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>A/R Auditor — Concept Mockup</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  :root {
+    --font-anthropic-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-anthropic-serif: Georgia, "Times New Roman", serif;
+    --color-fg: #1a1a1a; --color-fg-muted: #6b6f76; --color-bg: #f7f7f5;
+    --color-panel: #ffffff; --color-border-line: #e3e3e0;
+    --color-ok: #0ca30c; --color-warn: #b9790a; --color-bad: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --color-fg: #eceae6; --color-fg-muted: #9a9a95; --color-bg: #15140f;
+      --color-panel: #1d1c17; --color-border-line: #332f28;
+    }
+  }
+  :root[data-theme="dark"] {
+    --color-fg: #eceae6; --color-fg-muted: #9a9a95; --color-bg: #15140f;
+    --color-panel: #1d1c17; --color-border-line: #332f28;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); }
+  #dash-root { max-width: 1320px; margin: 0 auto; padding: clamp(16px, 4vw, 40px); }
+
+  #dash-root {
+    --arx-accent: #2a78d6; --arx-accent-soft: #eef4fc;
+    --arx-good: #0ca30c; --arx-good-soft: #eaf7ea;
+    --arx-bad: #d03b3b; --arx-bad-soft: #fbeaea;
+    --arx-warn: #b9790a; --arx-warn-soft: #fdf2df;
+    --arx-ink: var(--color-fg); --arx-ink-muted: var(--color-fg-muted);
+    --arx-line: var(--color-border-line);
+    --arx-shadow: 0 1px 2px rgba(11,11,11,0.05), 0 1px 1px rgba(11,11,11,0.03);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #dash-root { --arx-accent-soft: #15233a; --arx-good-soft: #112a12; --arx-bad-soft: #341616; --arx-warn-soft: #332508; }
+  }
+  :root[data-theme="dark"] #dash-root { --arx-accent-soft: #15233a; --arx-good-soft: #112a12; --arx-bad-soft: #341616; --arx-warn-soft: #332508; }
+
+  .mock-banner { display: flex; align-items: center; gap: 8px; background: var(--arx-warn-soft); color: var(--arx-warn); border: 1px solid var(--arx-warn); border-radius: 8px; padding: 9px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 18px; }
+  .mock-banner svg { flex: none; }
+
+  .arx-wrap { display: flex; flex-direction: column; gap: 22px; }
+  .arx-header { display: flex; flex-direction: column; gap: 4px; }
+  .arx-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--arx-accent); margin: 0; }
+  .arx-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 26px; color: var(--arx-ink); margin: 0; }
+  .arx-take { font-size: 13.5px; color: var(--arx-ink-muted); margin: 0; max-width: 78ch; line-height: 1.5; }
+
+  .arx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--color-panel); border: 1px solid var(--arx-line); border-radius: 10px; padding: 12px 16px; box-shadow: var(--arx-shadow); }
+  .arx-filter-label { font-size: 11px; color: var(--arx-ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; font-weight: 600; }
+  .arx-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .arx-chip { border: 1px solid var(--arx-line); background: var(--color-bg); color: var(--arx-ink); border-radius: 7px; padding: 6px 12px; font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 120ms ease; }
+  .arx-chip:hover { border-color: var(--arx-accent); color: var(--arx-accent); }
+  .arx-chip[aria-pressed="true"] { background: var(--arx-accent); color: #fff; border-color: var(--arx-accent); }
+  .arx-select { border: 1px solid var(--arx-line); background: var(--color-bg); color: var(--arx-ink); border-radius: 7px; padding: 6px 10px; font-size: 12.5px; }
+  .arx-date-input { border: 1px solid var(--arx-line); background: var(--color-bg); color: var(--arx-ink); border-radius: 7px; padding: 5px 9px; font-size: 12.5px; }
+  .arx-divider { width: 1px; align-self: stretch; background: var(--arx-line); margin: 0 4px; }
+
+  .arx-kpi-group { display: flex; flex-direction: column; gap: 8px; }
+  .arx-kpi-group-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--arx-ink-muted); }
+  .arx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 14px; }
+  .arx-kpi { background: var(--color-panel); border: 1px solid var(--arx-line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--arx-shadow); }
+  .arx-kpi-label { font-size: 11px; color: var(--arx-ink-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .arx-kpi-value { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 27px; line-height: 1.1; color: var(--arx-ink); font-variant-numeric: tabular-nums; }
+  .arx-kpi-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .arx-kpi-delta { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-variant-numeric: tabular-nums; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+  .arx-kpi-delta.is-good { color: var(--arx-good); background: var(--arx-good-soft); }
+  .arx-kpi-delta.is-bad { color: var(--arx-bad); background: var(--arx-bad-soft); }
+  .arx-kpi-delta.is-flat { color: var(--arx-ink-muted); background: var(--color-bg); }
+  .arx-kpi-sub { font-size: 11px; color: var(--arx-ink-muted); }
+
+  .arx-card { background: var(--color-panel); border: 1px solid var(--arx-line); border-radius: 10px; padding: 18px 20px; position: relative; min-width: 0; box-shadow: var(--arx-shadow); }
+  .arx-card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .arx-card-head-text { display: flex; flex-direction: column; gap: 3px; }
+  .arx-card-title { font-size: 15px; font-weight: 600; color: var(--arx-ink); letter-spacing: -0.01em; }
+  .arx-card-note { font-size: 12px; color: var(--arx-ink-muted); max-width: 70ch; line-height: 1.5; }
+
+  .arx-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+
+  .arx-table-wrap { overflow-x: auto; border: 1px solid var(--arx-line); border-radius: 8px; }
+  table.arx-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.arx-table th, table.arx-table td { text-align: right; padding: 9px 11px; border-bottom: 1px solid var(--arx-line); white-space: nowrap; }
+  table.arx-table th:first-child, table.arx-table td:first-child { text-align: left; font-weight: 500; }
+  table.arx-table th { color: var(--arx-ink-muted); font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; background: var(--color-bg); }
+  table.arx-table thead tr.arx-group-row th { border-bottom: none; text-align: center; }
+  table.arx-table tbody tr:nth-child(even):not(.is-total) td { background: color-mix(in srgb, var(--color-bg) 55%, transparent); }
+  table.arx-table tbody tr.is-total td { font-weight: 600; border-top: 1.5px solid var(--arx-ink); background: var(--color-bg); }
+  table.arx-table tbody tr.is-subtotal td { font-weight: 600; font-style: italic; color: var(--arx-ink-muted); border-top: 1px solid var(--arx-line); background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+  table.arx-table tbody tr.is-flagged td { background: var(--arx-warn-soft); }
+  table.arx-table tbody tr[aria-current="true"] td { background: var(--arx-accent-soft); font-weight: 600; box-shadow: inset 2px 0 0 var(--arx-accent); }
+  .arx-cell-main { font-weight: 600; }
+  .arx-cell-sub { font-size: 11px; color: var(--arx-ink-muted); }
+  .arx-group-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
+  .arx-group-tag.collectible { color: var(--arx-good); background: var(--arx-good-soft); }
+  .arx-group-tag.noncollectible { color: var(--arx-bad); background: var(--arx-bad-soft); }
+  .arx-group-tag.informational { color: var(--arx-accent); background: var(--arx-accent-soft); }
+  .arx-group-tag.additional { color: var(--arx-warn); background: var(--arx-warn-soft); }
+
+  .arx-bar-wrap { position: relative; width: 52px; height: 6px; background: var(--color-bg); border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 7px; overflow: hidden; }
+  .arx-bar-fill { position: absolute; top: 0; left: 0; bottom: 0; background: var(--arx-accent); border-radius: 3px; }
+  .arx-bar-fill.is-good { background: var(--arx-good); }
+  .arx-bar-fill.is-bad { background: var(--arx-bad); }
+  .arx-rate-text { font-weight: 600; }
+
+  .arx-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .arx-pill.is-good { color: var(--arx-good); background: var(--arx-good-soft); }
+  .arx-pill.is-bad { color: var(--arx-bad); background: var(--arx-bad-soft); }
+  .arx-pill.is-flat { color: var(--arx-ink-muted); background: var(--color-bg); }
+
+  .arx-chart-box { position: relative; min-height: 190px; }
+  .arx-chart-box svg { width: 100%; display: block; overflow: visible; }
+
+  .arx-idea-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: var(--arx-ink); }
+  .arx-idea-list li { margin-bottom: 4px; }
+  .arx-idea-list b { font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="dash-root">
+
+  <div class="mock-banner">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L1 21h22L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
+    Concept mockup, rebuilt from your A/R Auditor spreadsheet — illustrative sample numbers only
+    <a href="index.html" style="margin-left:auto;color:inherit;font-weight:600;white-space:nowrap;">← Back to AR Outlook dashboard</a>
+  </div>
+
+  <div class="arx-wrap">
+    <div class="arx-header">
+      <p class="arx-eyebrow">Revenue Cycle · Accounts Receivable</p>
+      <h1 class="arx-title">A/R Auditor</h1>
+      <p class="arx-take">A QA layer over the A/R team's follow-up work: are they working the right accounts first, is each follow-up actually moving the claim, is the team/agent hitting productivity, and does the logged action match what the claim really shows now.</p>
+    </div>
+
+    <div class="arx-filters">
+      <span class="arx-filter-label">Period</span>
+      <div class="arx-filter-group" id="period-chips">
+        <button class="arx-chip" data-period="yesterday" aria-pressed="false">Yesterday</button>
+        <button class="arx-chip" data-period="week" aria-pressed="true">Week</button>
+        <button class="arx-chip" data-period="month" aria-pressed="false">Month</button>
+        <button class="arx-chip" data-period="custom" aria-pressed="false">Custom</button>
+      </div>
+      <span class="arx-filter-group" id="custom-date-range" style="display:none;">
+        <input class="arx-date-input" type="date" id="custom-date-from" aria-label="Custom range start" />
+        <span class="arx-filter-label" style="text-transform:none;letter-spacing:normal;font-weight:400;">to</span>
+        <input class="arx-date-input" type="date" id="custom-date-to" aria-label="Custom range end" />
+      </span>
+      <div class="arx-divider"></div>
+      <span class="arx-filter-label">Team</span>
+      <select class="arx-select" id="team-select">
+        <option>All Teams</option><option>Team 1</option><option>Team 2</option><option>Team 3</option><option>Team 4</option><option>Team 5</option>
+      </select>
+      <span class="arx-filter-label">Agent</span>
+      <select class="arx-select" id="agent-select"><option>All Agents</option></select>
+    </div>
+
+    <div class="arx-kpi-group">
+      <div class="arx-kpi-group-label">Overall Quality</div>
+      <div class="arx-kpis">
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Audit Score</div>
+          <div class="arx-kpi-value" id="kpi-audit-score">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">avg across teams — priority adherence + action-match correctness</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Productivity</div>
+          <div class="arx-kpi-value" id="kpi-productivity">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">team accounts worked ÷ target</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Priority Adherence</div>
+          <div class="arx-kpi-value" id="kpi-priority-adherence">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">avg across teams</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arx-kpi-group">
+      <div class="arx-kpi-group-label">Where Follow-ups Land</div>
+      <div class="arx-kpis">
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Collectible</div>
+          <div class="arx-kpi-value" id="kpi-collectible">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">of closed follow-ups, this period</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Informational</div>
+          <div class="arx-kpi-value" id="kpi-informational">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">of closed follow-ups, this period</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Non-Collectible</div>
+          <div class="arx-kpi-value" id="kpi-noncollectible">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">of closed follow-ups, this period</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arx-kpi-group">
+      <div class="arx-kpi-group-label">Priority &amp; Risk Flags</div>
+      <div class="arx-kpis">
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Priority 1</div>
+          <div class="arx-kpi-value" id="kpi-priority1">—</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">share of this period's follow-ups</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Stale Follow-ups</div>
+          <div class="arx-kpi-value" id="kpi-stale">284</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-delta is-bad" id="kpi-stale-sub">$392K balance</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Duplicate Touches</div>
+          <div class="arx-kpi-value" id="kpi-dup">97</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">no status change, this period</span></div>
+        </div>
+        <div class="arx-kpi">
+          <div class="arx-kpi-label">Escalation Compliance</div>
+          <div class="arx-kpi-value">77%</div>
+          <div class="arx-kpi-row"><span class="arx-kpi-sub">of claims meeting criteria</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 1: Priority mix ========= -->
+    <div class="arx-card">
+      <div class="arx-card-head">
+        <div class="arx-card-head-text">
+          <div class="arx-card-title">Priority Mix — Is the Team Working the Right Accounts?</div>
+          <div class="arx-card-note"><b>What this is:</b> what share of this period's follow-ups went to Priority 1, Priority 2, Priority 3, versus claims touched before they were actually due. A "too-early" follow-up is when an agent re-touches a claim before the date its last note said to re-check it — wasted effort on a claim that wasn't ready to move, instead of working something that actually needed attention.</div>
+        </div>
+      </div>
+      <div class="arx-table-wrap">
+        <table class="arx-table">
+          <thead><tr><th style="text-align:left">Priority</th><th>Claims</th><th>%</th><th>Claim Balance</th><th>%</th></tr></thead>
+          <tbody id="priority-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 2: Outcome mix ========= -->
+    <div class="arx-card">
+      <div class="arx-card-head">
+        <div class="arx-card-head-text">
+          <div class="arx-card-title">Follow-up Outcome Mix — Is the Follow-up Productive?</div>
+          <div class="arx-card-note"><b>What this is:</b> every closed follow-up this period, grouped by what it actually resolved to — <b>Collectible</b> (likely to result in payment: appealed, rebilled, or billed to the patient), <b>Non-Collectible</b> (written off or adjusted, nothing more expected), <b>Informational</b> (already in motion with the payer, nothing new to do), or <b>Additional Info Needed</b> (blocked on something like records or an NDC#).</div>
+        </div>
+      </div>
+      <div class="arx-table-wrap">
+        <table class="arx-table">
+          <thead><tr><th style="text-align:left">Outcome</th><th>Claims</th><th>%</th><th>Claim Balance</th><th>%</th></tr></thead>
+          <tbody id="outcome-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 3: Productivity + Audit Score ========= -->
+    <div class="arx-grid-2">
+      <div class="arx-card">
+        <div class="arx-card-head">
+          <div class="arx-card-head-text">
+            <div class="arx-card-title">Productivity &amp; Audit Score — by Team</div>
+            <div class="arx-card-note"><b>What this is:</b> accounts worked vs. target, how much of that work followed priority order (Priority Adherence), and a blended Audit Score that combines priority adherence with action-match correctness (below) into one quality number per team.</div>
+          </div>
+        </div>
+        <div class="arx-table-wrap">
+          <table class="arx-table">
+            <thead><tr><th style="text-align:left">Team</th><th>Worked</th><th>Target</th><th>Achieved</th><th>Priority Adh.</th><th>Audit Score</th></tr></thead>
+            <tbody id="team-tbody"></tbody>
+          </table>
+        </div>
+        <div class="arx-chart-box" style="margin-top:14px;"><svg id="team-chart" viewBox="0 0 440 150" preserveAspectRatio="none"></svg></div>
+      </div>
+
+      <div class="arx-card">
+        <div class="arx-card-head">
+          <div class="arx-card-head-text">
+            <div class="arx-card-title">Productivity &amp; Audit Score — by Agent</div>
+            <div class="arx-card-note"><b>What this is:</b> the same view one level down — which individual agents are hitting their claims-worked target, following priority order, and auditing clean (high Audit Score) versus who's falling behind on volume or quality.</div>
+          </div>
+        </div>
+        <div class="arx-table-wrap">
+          <table class="arx-table">
+            <thead><tr><th style="text-align:left">Agent</th><th>Worked</th><th>Target</th><th>Achieved</th><th>Priority Adh.</th><th>Audit Score</th></tr></thead>
+            <tbody id="agent-tbody"></tbody>
+          </table>
+        </div>
+        <div class="arx-chart-box" style="margin-top:14px;"><svg id="agent-chart" viewBox="0 0 440 150" preserveAspectRatio="none"></svg></div>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 4: Action-match audit ========= -->
+    <div class="arx-card">
+      <div class="arx-card-head">
+        <div class="arx-card-head-text">
+          <div class="arx-card-title">Action-Match Audit — Stated Action vs. Verified Outcome</div>
+          <div class="arx-card-note"><b>What this is:</b> for each action an agent logged on a claim, does the claim's actual current state confirm it really happened — e.g. does "Claim Rebilled" mean a rebill is really on file? A mismatch means the note doesn't match reality (the rebill was never submitted, the appeal was never filed). The last row is claims the audit itself flagged outright as a likely incorrect follow-up.</div>
+        </div>
+      </div>
+      <div class="arx-table-wrap">
+        <table class="arx-table">
+          <thead><tr><th style="text-align:left">Action Logged</th><th>Match</th><th>%</th><th>Mismatch</th><th>%</th><th>Total</th></tr></thead>
+          <tbody id="action-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 5: Timeliness / stale follow-ups ========= -->
+    <div class="arx-card">
+      <div class="arx-card-head">
+        <div class="arx-card-head-text">
+          <div class="arx-card-title">Timeliness Audit — Stale Follow-ups</div>
+          <div class="arx-card-note"><b>What this is:</b> the flip side of "too early" above. If a note says "re-check in 10 days" and nobody has touched that claim in 18 days, it's stale — actionable right now, but nobody's working it. It's bucketed by how overdue, since the longer it sits the more it risks timely-filing or appeal-window deadlines. In most A/R teams, stale claims (not too-early ones) are the bigger dollar leak.</div>
+        </div>
+      </div>
+      <div class="arx-table-wrap">
+        <table class="arx-table">
+          <thead><tr><th style="text-align:left">Days Overdue</th><th>Claims</th><th>%</th><th>Claim Balance</th><th>%</th></tr></thead>
+          <tbody id="stale-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 6: Outcome-to-cash conversion ========= -->
+    <div class="arx-card">
+      <div class="arx-card-head">
+        <div class="arx-card-head-text">
+          <div class="arx-card-title">Outcome-to-Cash Audit — Did "Collectible" Actually Convert?</div>
+          <div class="arx-card-note"><b>What this is:</b> for claims logged as Collectible above, did money actually follow? Within 30 days of that note, checks whether the claim posted a payment or adjustment (<b>Converted</b>), is still waiting on the payer (<b>Still Pending</b>), or never moved (<b>No Conversion</b>) — this is what separates an optimistic note from an outcome that actually paid.</div>
+        </div>
+      </div>
+      <div class="arx-table-wrap">
+        <table class="arx-table">
+          <thead><tr><th style="text-align:left">Collectible Outcome</th><th>Follow-ups</th><th>Converted ≤30d</th><th>%</th><th>Still Pending</th><th>%</th><th>No Conversion</th><th>%</th></tr></thead>
+          <tbody id="cash-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="arx-grid-2">
+      <!-- ========= SECTION 7: Duplicate-touch audit ========= -->
+      <div class="arx-card">
+        <div class="arx-card-head">
+          <div class="arx-card-head-text">
+            <div class="arx-card-title">Duplicate-Touch Audit</div>
+            <div class="arx-card-note"><b>What this is:</b> the same claim worked more than once this period with no change in its status — a sign of wasted capacity, or an agent not checking a claim's prior notes before working it again. 97 claims / $141K balance tied up this period.</div>
+          </div>
+        </div>
+        <div class="arx-table-wrap">
+          <table class="arx-table">
+            <thead><tr><th style="text-align:left">Claim</th><th style="text-align:left">Agent(s)</th><th>Touches</th><th style="text-align:left">Why it's flagged</th></tr></thead>
+            <tbody id="dup-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========= SECTION 8: Note-completeness audit ========= -->
+      <div class="arx-card">
+        <div class="arx-card-head">
+          <div class="arx-card-head-text">
+            <div class="arx-card-title">Note-Completeness Audit</div>
+            <div class="arx-card-note"><b>What this is:</b> whether the note an agent logged actually captured the information that action type requires to be useful later — a "Claim Rebilled" note with no new claim number, an "Appeal Submitted" note with no confirmation ID. Missing that detail makes the note hard to verify or follow up on down the line.</div>
+          </div>
+        </div>
+        <div class="arx-table-wrap">
+          <table class="arx-table">
+            <thead><tr><th style="text-align:left">Action Type</th><th style="text-align:left">Required Field</th><th>Captured</th><th>Missing</th><th>Complete %</th></tr></thead>
+            <tbody id="note-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========= SECTION 9: Escalation-compliance audit ========= -->
+    <div class="arx-card">
+      <div class="arx-card-head">
+        <div class="arx-card-head-text">
+          <div class="arx-card-title">Escalation-Compliance Audit</div>
+          <div class="arx-card-note"><b>What this is:</b> claims that trip an escalation rule (e.g. Priority 1, balance over a threshold, no resolution after N touches) should get moved up to a supervisor or specialist rather than sit with the same agent indefinitely. By team: how many claims met that trigger, how many actually got escalated, and the resulting compliance rate. Catches high-dollar claims quietly aging out because nobody raised their hand on them.</div>
+        </div>
+      </div>
+      <div class="arx-table-wrap">
+        <table class="arx-table">
+          <thead><tr><th style="text-align:left">Team</th><th>Meets Escalation Criteria</th><th>Escalated</th><th>Not Escalated</th><th>Compliance %</th></tr></thead>
+          <tbody id="esc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  function fmtMoney(n) { return '$' + Math.round(n).toLocaleString(); }
+  function pct(n, total) { return (total ? (n / total * 100) : 0).toFixed(1) + '%'; }
+  function achievedPill(p) {
+    var cls = p >= 100 ? 'is-good' : (p < 85 ? 'is-bad' : 'is-flat');
+    return '<span class="arx-pill ' + cls + '">' + p.toFixed(0) + '%</span>';
+  }
+  function rateCell(p) {
+    var cls = p >= 85 ? 'is-good' : (p < 75 ? 'is-bad' : '');
+    var w = Math.max(2, Math.min(100, p));
+    return '<span class="arx-bar-wrap"><span class="arx-bar-fill ' + cls + '" style="width:' + w + '%"></span></span><span class="arx-rate-text">' + p.toFixed(0) + '%</span>';
+  }
+
+  // ---- base (weekly) data ----
+  var agentNames = ['A. Sharma','R. Iyer','P. Menon','K. Das','S. Rao','V. Nair','M. Pillai','D. Kumar'];
+  document.getElementById('agent-select').innerHTML += agentNames.map(function (a) { return '<option>' + a + '</option>'; }).join('');
+
+  var periodMult = { yesterday: 0.15, week: 1, month: 4.3, custom: 1 };
+
+  var priorityBase = [
+    { label: 'Priority 1', claims: 410, balance: 612000 },
+    { label: 'Priority 2', claims: 860, balance: 980000 },
+    { label: 'Priority 3', claims: 390, balance: 410000 },
+    { label: 'Too-Early Follow-up', claims: 200, balance: 168000 }
+  ];
+  var outcomeBase = [
+    { group: 'Collectible', label: 'Claim Appealed', claims: 140, balance: 268000 },
+    { group: 'Collectible', label: 'Claim Rebilled', claims: 210, balance: 352000 },
+    { group: 'Collectible', label: 'Billed Patient', claims: 165, balance: 61000 },
+    { group: 'Informational', label: 'Claim in Process', claims: 390, balance: 498000 },
+    { group: 'Informational', label: 'Claim Recently Paid', claims: 95, balance: 112000 },
+    { group: 'Additional Info', label: 'Medical Records Needed', claims: 120, balance: 183000 },
+    { group: 'Additional Info', label: 'NDC# Pending', claims: 40, balance: 52000 },
+    { group: 'Non-Collectible', label: 'Adjusted', claims: 310, balance: 221000 },
+    { group: 'Non-Collectible', label: 'Write-Off Review', claims: 190, balance: 158000 }
+  ];
+  var groupTagClass = { 'Collectible': 'collectible', 'Non-Collectible': 'noncollectible', 'Informational': 'informational', 'Additional Info': 'additional' };
+  var teamBase = [
+    { name: 'Team 1', worked: 410, target: 450, adherence: 88, audit: 92 },
+    { name: 'Team 2', worked: 465, target: 450, adherence: 81, audit: 85 },
+    { name: 'Team 3', worked: 380, target: 400, adherence: 90, audit: 94 },
+    { name: 'Team 4', worked: 340, target: 400, adherence: 70, audit: 76 },
+    { name: 'Team 5', worked: 265, target: 300, adherence: 95, audit: 93 }
+  ];
+  var agentBase = [
+    { name: 'A. Sharma', worked: 52, target: 45, adherence: 92, audit: 95 },
+    { name: 'R. Iyer', worked: 41, target: 45, adherence: 78, audit: 82 },
+    { name: 'P. Menon', worked: 47, target: 45, adherence: 88, audit: 90 },
+    { name: 'K. Das', worked: 36, target: 45, adherence: 64, audit: 71 },
+    { name: 'S. Rao', worked: 49, target: 45, adherence: 91, audit: 93 },
+    { name: 'V. Nair', worked: 44, target: 45, adherence: 85, audit: 88 },
+    { name: 'M. Pillai', worked: 39, target: 45, adherence: 73, audit: 77 },
+    { name: 'D. Kumar', worked: 46, target: 45, adherence: 89, audit: 91 }
+  ];
+  var actionBase = [
+    { label: 'Billed Patient', match: 142, mismatch: 23 },
+    { label: 'Medicaid, Billed Patient', match: 58, mismatch: 11 },
+    { label: 'Claim Rebilled', match: 186, mismatch: 24 },
+    { label: 'Corrected Claim Rebilled', match: 74, mismatch: 19 },
+    { label: 'Medical Records Submitted', match: 96, mismatch: 14 },
+    { label: 'Appeal Submitted', match: 121, mismatch: 19 },
+    { label: 'Adjusted', match: 268, mismatch: 42 },
+    { label: 'Potential Incorrect Follow-up', match: 0, mismatch: 61 }
+  ];
+  var staleBase = [
+    { label: '1–15 days overdue', claims: 164, balance: 210000 },
+    { label: '16–30 days overdue', claims: 86, balance: 118000 },
+    { label: '>30 days overdue', claims: 34, balance: 64000 }
+  ];
+  var cashBase = [
+    { label: 'Claim Appealed', total: 140, converted: 58, pending: 61, none: 21 },
+    { label: 'Claim Rebilled', total: 210, converted: 112, pending: 76, none: 22 },
+    { label: 'Billed Patient', total: 165, converted: 40, pending: 95, none: 30 }
+  ];
+  var dupBase = [
+    { id: 'CLM-10089', agents: 'K. Das', touches: 3, why: 'Same "in process" note logged 3× in 9 days' },
+    { id: 'CLM-10104', agents: 'M. Pillai', touches: 2, why: 'Called payer twice, same hold message both times' },
+    { id: 'CLM-10131', agents: 'D. Kumar, R. Iyer', touches: 2, why: 'Two agents worked the same claim, unaware of each other' },
+    { id: 'CLM-10156', agents: 'S. Rao', touches: 3, why: 'Re-touched before the prior note\'s re-check date' }
+  ];
+  var noteBase = [
+    { action: 'Claim Rebilled', field: 'New Claim / Reference #', captured: 178, missing: 32 },
+    { action: 'Appeal Submitted', field: 'Appeal Confirmation ID', captured: 98, missing: 23 },
+    { action: 'Medical Records Submitted', field: 'Fax / Submission Confirmation #', captured: 84, missing: 36 },
+    { action: 'Corrected Claim Rebilled', field: 'Corrected Claim #', captured: 61, missing: 13 }
+  ];
+  var escBase = [
+    { team: 'Team 1', criteria: 42, escalated: 35 },
+    { team: 'Team 2', criteria: 38, escalated: 24 },
+    { team: 'Team 3', criteria: 29, escalated: 27 },
+    { team: 'Team 4', criteria: 33, escalated: 19 },
+    { team: 'Team 5', criteria: 21, escalated: 19 }
+  ];
+
+  function scale(n, m) { return Math.max(0, Math.round(n * m)); }
+
+  function customMultiplier() {
+    var fromVal = document.getElementById('custom-date-from').value;
+    var toVal = document.getElementById('custom-date-to').value;
+    if (!fromVal || !toVal) return periodMult.week;
+    var from = new Date(fromVal), to = new Date(toVal);
+    var days = Math.round((to - from) / 86400000) + 1;
+    if (days <= 0) return periodMult.week;
+    return days / 7; // scaled against the Week baseline (7 days)
+  }
+
+  function renderAll() {
+    var period = document.querySelector('#period-chips .arx-chip[aria-pressed="true"]');
+    var periodKey = period ? period.dataset.period : 'week';
+    var mult = periodKey === 'custom' ? customMultiplier() : periodMult[periodKey];
+    var selTeam = document.getElementById('team-select').value;
+    var selAgent = document.getElementById('agent-select').value;
+
+    // KPI strip (scales with period)
+    var staleClaims = scale(284, mult), staleBal = scale(392000, mult);
+    document.getElementById('kpi-stale').textContent = staleClaims.toLocaleString();
+    document.getElementById('kpi-stale-sub').textContent = fmtMoney(staleBal) + ' balance';
+    document.getElementById('kpi-dup').textContent = scale(97, mult).toLocaleString();
+
+    // Priority mix
+    var priorityRows = priorityBase.map(function (r) { return { label: r.label, claims: scale(r.claims, mult), balance: scale(r.balance, mult) }; });
+    var prTotalClaims = priorityRows.reduce(function (s, r) { return s + r.claims; }, 0);
+    var prTotalBalance = priorityRows.reduce(function (s, r) { return s + r.balance; }, 0);
+    document.getElementById('kpi-priority1').textContent = pct(priorityRows[0].claims, prTotalClaims);
+    document.getElementById('priority-tbody').innerHTML =
+      priorityRows.map(function (r) {
+        var flagged = r.label.indexOf('Too-Early') === 0;
+        return '<tr' + (flagged ? ' class="is-flagged"' : '') + '><td>' + r.label + '</td><td class="arx-cell-main">' + r.claims.toLocaleString() +
+          '</td><td class="arx-cell-sub">' + pct(r.claims, prTotalClaims) + '</td><td class="arx-cell-main">' + fmtMoney(r.balance) +
+          '</td><td class="arx-cell-sub">' + pct(r.balance, prTotalBalance) + '</td></tr>';
+      }).join('') +
+      '<tr class="is-total"><td>Total</td><td>' + prTotalClaims.toLocaleString() + '</td><td>100.0%</td><td>' + fmtMoney(prTotalBalance) + '</td><td>100.0%</td></tr>';
+
+    // Outcome mix (with a subtotal row after each group)
+    var outcomeRows = outcomeBase.map(function (r) { return { group: r.group, label: r.label, claims: scale(r.claims, mult), balance: scale(r.balance, mult) }; });
+    var ocTotalClaims = outcomeRows.reduce(function (s, r) { return s + r.claims; }, 0);
+    var ocTotalBalance = outcomeRows.reduce(function (s, r) { return s + r.balance; }, 0);
+    function groupClaims(g) { return outcomeRows.filter(function (r) { return r.group === g; }).reduce(function (s, r) { return s + r.claims; }, 0); }
+    document.getElementById('kpi-collectible').textContent = pct(groupClaims('Collectible'), ocTotalClaims);
+    document.getElementById('kpi-informational').textContent = pct(groupClaims('Informational'), ocTotalClaims);
+    document.getElementById('kpi-noncollectible').textContent = pct(groupClaims('Non-Collectible'), ocTotalClaims);
+    var ocHtml = '';
+    var ocGroupOrder = [];
+    outcomeRows.forEach(function (r) { if (ocGroupOrder.indexOf(r.group) === -1) ocGroupOrder.push(r.group); });
+    ocGroupOrder.forEach(function (g) {
+      var rows = outcomeRows.filter(function (r) { return r.group === g; });
+      var gClaims = rows.reduce(function (s, r) { return s + r.claims; }, 0);
+      var gBalance = rows.reduce(function (s, r) { return s + r.balance; }, 0);
+      ocHtml += rows.map(function (r) {
+        return '<tr><td><span class="arx-group-tag ' + groupTagClass[r.group] + '">' + r.group + '</span>' + r.label +
+          '</td><td class="arx-cell-main">' + r.claims.toLocaleString() + '</td><td class="arx-cell-sub">' + pct(r.claims, ocTotalClaims) +
+          '</td><td class="arx-cell-main">' + fmtMoney(r.balance) + '</td><td class="arx-cell-sub">' + pct(r.balance, ocTotalBalance) + '</td></tr>';
+      }).join('');
+      ocHtml += '<tr class="is-subtotal"><td>' + g + ' subtotal</td><td>' + gClaims.toLocaleString() + '</td><td class="arx-cell-sub">' + pct(gClaims, ocTotalClaims) +
+        '</td><td>' + fmtMoney(gBalance) + '</td><td class="arx-cell-sub">' + pct(gBalance, ocTotalBalance) + '</td></tr>';
+    });
+    ocHtml += '<tr class="is-total"><td>Total</td><td>' + ocTotalClaims.toLocaleString() + '</td><td>100.0%</td><td>' + fmtMoney(ocTotalBalance) + '</td><td>100.0%</td></tr>';
+    document.getElementById('outcome-tbody').innerHTML = ocHtml;
+
+    // Team & agent productivity — scale "worked"/"target" with period; highlight the selected row
+    function renderProdTable(tbodyId, rows, selectedName) {
+      document.getElementById(tbodyId).innerHTML = rows.map(function (r) {
+        var worked = scale(r.worked, mult), target = scale(r.target, mult);
+        var achieved = target ? worked / target * 100 : 0;
+        var current = selectedName && selectedName !== 'All Teams' && selectedName !== 'All Agents' && r.name === selectedName;
+        return '<tr' + (current ? ' aria-current="true"' : '') + '><td class="arx-cell-main">' + r.name + '</td><td class="arx-cell-main">' + worked +
+          '</td><td class="arx-cell-sub">' + target + '</td><td>' + achievedPill(achieved) +
+          '</td><td>' + rateCell(r.adherence) + '</td><td>' + rateCell(r.audit) + '</td></tr>';
+      }).join('');
+    }
+    renderProdTable('team-tbody', teamBase, selTeam);
+    renderProdTable('agent-tbody', agentBase, selAgent);
+
+    var teamWorkedSum = teamBase.reduce(function (s, r) { return s + scale(r.worked, mult); }, 0);
+    var teamTargetSum = teamBase.reduce(function (s, r) { return s + scale(r.target, mult); }, 0);
+    var avgAdherence = teamBase.reduce(function (s, r) { return s + r.adherence; }, 0) / teamBase.length;
+    var avgAudit = teamBase.reduce(function (s, r) { return s + r.audit; }, 0) / teamBase.length;
+    document.getElementById('kpi-productivity').textContent = pct(teamWorkedSum, teamTargetSum);
+    document.getElementById('kpi-priority-adherence').textContent = avgAdherence.toFixed(0) + '%';
+    document.getElementById('kpi-audit-score').textContent = avgAudit.toFixed(0) + '%';
+
+    function drawBarChart(svgSel, rows, selectedName) {
+      var svg = d3.select(svgSel);
+      var W = 440, H = 150, M = { t: 10, r: 10, b: 28, l: 10 };
+      var names = rows.map(function (r) { return r.name; });
+      var x = d3.scaleBand().domain(names).range([M.l, W - M.r]).padding(0.32);
+      var y = d3.scaleLinear().domain([0, 100]).range([H - M.b, M.t]);
+      svg.selectAll('*').remove();
+      svg.selectAll('.bar').data(rows).enter().append('rect')
+        .attr('x', function (r) { return x(r.name); }).attr('width', x.bandwidth())
+        .attr('y', function (r) { return y(r.audit); }).attr('height', function (r) { return (H - M.b) - y(r.audit); })
+        .attr('rx', 3)
+        .attr('opacity', function (r) { return (selectedName && selectedName.indexOf('All') !== 0 && r.name !== selectedName) ? 0.35 : 1; })
+        .attr('fill', function (r) { return r.audit >= 85 ? 'var(--arx-good)' : (r.audit < 75 ? 'var(--arx-bad)' : 'var(--arx-accent)'); });
+      svg.selectAll('.lbl').data(rows).enter().append('text')
+        .attr('x', function (r) { return x(r.name) + x.bandwidth() / 2; }).attr('y', H - 10)
+        .attr('text-anchor', 'middle').attr('font-size', '10px').attr('fill', 'var(--arx-ink-muted)')
+        .text(function (r) { return r.name.length > 9 ? r.name.slice(0, 8) + '…' : r.name; });
+      svg.selectAll('.val').data(rows).enter().append('text')
+        .attr('x', function (r) { return x(r.name) + x.bandwidth() / 2; }).attr('y', function (r) { return y(r.audit) - 5; })
+        .attr('text-anchor', 'middle').attr('font-size', '10.5px').attr('font-weight', '600').attr('fill', 'var(--arx-ink)')
+        .text(function (r) { return r.audit; });
+    }
+    drawBarChart('#team-chart', teamBase, selTeam);
+    drawBarChart('#agent-chart', agentBase, selAgent);
+
+    // Action-match audit
+    var actionRows = actionBase.map(function (r) { return { label: r.label, match: scale(r.match, mult), mismatch: scale(r.mismatch, mult) }; });
+    document.getElementById('action-tbody').innerHTML = actionRows.map(function (r) {
+      var total = r.match + r.mismatch;
+      var flagged = r.label === 'Potential Incorrect Follow-up';
+      return '<tr' + (flagged ? ' class="is-flagged"' : '') + '><td>' + r.label + '</td><td class="arx-cell-main">' + r.match +
+        '</td><td class="arx-cell-sub">' + pct(r.match, total) + '</td><td class="arx-cell-main">' + r.mismatch +
+        '</td><td class="arx-cell-sub">' + pct(r.mismatch, total) + '</td><td>' + total + '</td></tr>';
+    }).join('');
+
+    // Timeliness / stale follow-ups
+    var staleRows = staleBase.map(function (r) { return { label: r.label, claims: scale(r.claims, mult), balance: scale(r.balance, mult) }; });
+    var stTotalClaims = staleRows.reduce(function (s, r) { return s + r.claims; }, 0);
+    var stTotalBalance = staleRows.reduce(function (s, r) { return s + r.balance; }, 0);
+    document.getElementById('stale-tbody').innerHTML =
+      staleRows.map(function (r) {
+        return '<tr class="is-flagged"><td>' + r.label + '</td><td class="arx-cell-main">' + r.claims +
+          '</td><td class="arx-cell-sub">' + pct(r.claims, stTotalClaims) + '</td><td class="arx-cell-main">' + fmtMoney(r.balance) +
+          '</td><td class="arx-cell-sub">' + pct(r.balance, stTotalBalance) + '</td></tr>';
+      }).join('') +
+      '<tr class="is-total"><td>Total</td><td>' + stTotalClaims + '</td><td>100.0%</td><td>' + fmtMoney(stTotalBalance) + '</td><td>100.0%</td></tr>';
+
+    // Outcome-to-cash conversion
+    var cashRows = cashBase.map(function (r) { return { label: r.label, total: scale(r.total, mult), converted: scale(r.converted, mult), pending: scale(r.pending, mult), none: scale(r.none, mult) }; });
+    document.getElementById('cash-tbody').innerHTML = cashRows.map(function (r) {
+      return '<tr><td>' + r.label + '</td><td class="arx-cell-main">' + r.total +
+        '</td><td class="arx-cell-main">' + r.converted + '</td><td class="arx-cell-sub">' + pct(r.converted, r.total) +
+        '</td><td>' + r.pending + '</td><td class="arx-cell-sub">' + pct(r.pending, r.total) +
+        '</td><td>' + r.none + '</td><td class="arx-cell-sub">' + pct(r.none, r.total) + '</td></tr>';
+    }).join('');
+
+    // Duplicate-touch audit — filters by selected agent, scales touches count by period
+    var dupFiltered = dupBase.filter(function (r) {
+      return !selAgent || selAgent === 'All Agents' || r.agents.indexOf(selAgent) !== -1;
+    });
+    document.getElementById('dup-tbody').innerHTML = dupFiltered.length ?
+      dupFiltered.map(function (r) {
+        return '<tr><td class="arx-cell-main">' + r.id + '</td><td>' + r.agents + '</td><td class="arx-cell-main">' + Math.max(2, scale(r.touches, mult)) +
+          '</td><td class="arx-cell-sub" style="white-space:normal;">' + r.why + '</td></tr>';
+      }).join('') :
+      '<tr><td colspan="4" class="arx-cell-sub" style="text-align:center;">No duplicate touches for ' + selAgent + ' this period.</td></tr>';
+
+    // Note-completeness audit
+    var noteRows = noteBase.map(function (r) { return { action: r.action, field: r.field, captured: scale(r.captured, mult), missing: scale(r.missing, mult) }; });
+    document.getElementById('note-tbody').innerHTML = noteRows.map(function (r) {
+      var total = r.captured + r.missing;
+      var completeness = total ? r.captured / total * 100 : 0;
+      return '<tr><td>' + r.action + '</td><td class="arx-cell-sub">' + r.field + '</td><td class="arx-cell-main">' + r.captured +
+        '</td><td>' + r.missing + '</td><td>' + rateCell(completeness) + '</td></tr>';
+    }).join('');
+
+    // Escalation-compliance audit — highlight selected team's row
+    var escRows = escBase.map(function (r) { return { team: r.team, criteria: scale(r.criteria, mult), escalated: scale(r.escalated, mult) }; });
+    var escTotalCriteria = escRows.reduce(function (s, r) { return s + r.criteria; }, 0);
+    var escTotalEscalated = escRows.reduce(function (s, r) { return s + r.escalated; }, 0);
+    document.getElementById('esc-tbody').innerHTML =
+      escRows.map(function (r) {
+        var notEsc = r.criteria - r.escalated;
+        var compliance = r.criteria ? r.escalated / r.criteria * 100 : 0;
+        var current = selTeam && selTeam !== 'All Teams' && r.team === selTeam;
+        return '<tr' + (current ? ' aria-current="true"' : '') + '><td class="arx-cell-main">' + r.team + '</td><td>' + r.criteria + '</td><td class="arx-cell-main">' + r.escalated +
+          '</td><td>' + notEsc + '</td><td>' + rateCell(compliance) + '</td></tr>';
+      }).join('') +
+      '<tr class="is-total"><td>Total</td><td>' + escTotalCriteria + '</td><td>' + escTotalEscalated + '</td><td>' + (escTotalCriteria - escTotalEscalated) +
+      '</td><td>' + rateCell(escTotalEscalated / escTotalCriteria * 100) + '</td></tr>';
+  }
+
+  document.querySelectorAll('#period-chips .arx-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      document.querySelectorAll('#period-chips .arx-chip').forEach(function (c) { c.setAttribute('aria-pressed', 'false'); });
+      chip.setAttribute('aria-pressed', 'true');
+      var isCustom = chip.dataset.period === 'custom';
+      document.getElementById('custom-date-range').style.display = isCustom ? 'inline-flex' : 'none';
+      if (isCustom) {
+        var fromEl = document.getElementById('custom-date-from'), toEl = document.getElementById('custom-date-to');
+        if (!fromEl.value || !toEl.value) {
+          var today = new Date();
+          var weekAgo = new Date(today.getTime() - 6 * 86400000);
+          toEl.value = today.toISOString().slice(0, 10);
+          fromEl.value = weekAgo.toISOString().slice(0, 10);
+        }
+      }
+      renderAll();
+    });
+  });
+  document.getElementById('team-select').addEventListener('change', renderAll);
+  document.getElementById('agent-select').addEventListener('change', renderAll);
+  document.getElementById('custom-date-from').addEventListener('change', renderAll);
+  document.getElementById('custom-date-to').addEventListener('change', renderAll);
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
